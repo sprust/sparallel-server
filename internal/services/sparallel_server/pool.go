@@ -2,6 +2,7 @@ package sparallel_server
 
 import (
 	"github.com/google/uuid"
+	"sparallel_server/internal/helpers"
 	"sync"
 )
 
@@ -23,13 +24,11 @@ type Pool struct {
 }
 
 func NewPool() *Pool {
-	return &Pool{
-		waitingTasks:     make(map[string]*Task),
-		processesPool:    make(map[string]*Process),
-		runningTasks:     make(map[string]*ActiveWorker),
-		runningProcesses: make(map[string]*ActiveWorker),
-		finishedTasks:    make(map[string]map[string]*FinishedTask),
-	}
+	pool := &Pool{}
+
+	pool.flush()
+
+	return pool
 }
 
 func (p *Pool) AddProcess(process *Process) {
@@ -45,14 +44,14 @@ func (p *Pool) DeleteProcess(processUuid string) {
 
 	delete(p.processesPool, processUuid)
 
-	runningProcess, exists := p.runningProcesses[processUuid]
+	_, exists := p.runningProcesses[processUuid]
 
 	if !exists {
 		return
 	}
 
 	delete(p.runningProcesses, processUuid)
-	delete(p.runningTasks, runningProcess.task.Uuid)
+	//delete(p.runningTasks, runningProcess.task.Uuid)
 }
 
 func (p *Pool) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
@@ -71,15 +70,20 @@ func (p *Pool) AddTask(groupUuid string, unixTimeTimeout int, payload string) *T
 	return newTask
 }
 
-func (p *Pool) CancelTask(taskUuid string) {
+func (p *Pool) CancelTask() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-
 }
 
 func (p *Pool) RegisterFinishedTasks(worker *ActiveWorker, finishedTask *FinishedTask) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+
+	_, exists := p.finishedTasks[worker.task.GroupUuid]
+
+	if !exists {
+		p.finishedTasks[worker.task.GroupUuid] = make(map[string]*FinishedTask)
+	}
 
 	p.finishedTasks[worker.task.GroupUuid][finishedTask.Task.Uuid] = finishedTask
 
@@ -106,7 +110,59 @@ func (p *Pool) DeleteFinishedTasks(finishedTask *FinishedTask) {
 	}
 }
 
-func (p *Pool) DetectFinishedTask(groupUuid string) *FinishedTask {
+func (p *Pool) CreateActiveWorkers() []*ActiveWorker {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	var activeWorkers []*ActiveWorker
+
+	taskUuids := helpers.GetMapKeys(p.waitingTasks)
+
+	if len(taskUuids) == 0 {
+		return activeWorkers
+	}
+
+	var freeProcesses []*Process
+
+	for _, processUuid := range p.processesPool {
+		_, exists := p.runningProcesses[processUuid.Uuid]
+
+		if exists {
+			continue
+		}
+
+		freeProcesses = append(freeProcesses, processUuid)
+	}
+
+	if len(freeProcesses) == 0 {
+		return activeWorkers
+	}
+
+	if len(taskUuids) > len(freeProcesses) {
+		taskUuids = taskUuids[0:len(freeProcesses)]
+	}
+
+	for index, taskUuid := range taskUuids {
+		task := p.waitingTasks[taskUuid]
+		process := freeProcesses[index]
+
+		activeWorker := &ActiveWorker{
+			task:    task,
+			process: process,
+		}
+
+		activeWorkers = append(activeWorkers, activeWorker)
+
+		delete(p.waitingTasks, taskUuid)
+
+		p.runningTasks[task.Uuid] = activeWorker
+		p.runningProcesses[process.Uuid] = activeWorker
+	}
+
+	return activeWorkers
+}
+
+func (p *Pool) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -114,17 +170,10 @@ func (p *Pool) DetectFinishedTask(groupUuid string) *FinishedTask {
 
 	if !exists {
 		return &FinishedTask{
-			Task:     nil,
-			Response: "err: tasks group not found",
-			IsError:  true,
-		}
-	}
-
-	if len(group) == 0 {
-		return &FinishedTask{
-			Task:     nil,
-			Response: "warn: no tasks in group",
-			IsError:  false,
+			Task:       nil,
+			IsFinished: false,
+			Response:   "task not finished",
+			IsError:    false,
 		}
 	}
 
@@ -136,7 +185,33 @@ func (p *Pool) DetectFinishedTask(groupUuid string) *FinishedTask {
 		break
 	}
 
-	p.DeleteFinishedTasks(finishedTask)
+	if finishedTask == nil {
+		return &FinishedTask{
+			Task:       nil,
+			IsFinished: false,
+			Response:   "task not finished",
+			IsError:    false,
+		}
+	}
+
+	finishedTask.IsFinished = true
 
 	return finishedTask
+}
+
+func (p *Pool) flush() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	p.waitingTasks = make(map[string]*Task)
+	p.processesPool = make(map[string]*Process)
+	p.runningTasks = make(map[string]*ActiveWorker)
+	p.runningProcesses = make(map[string]*ActiveWorker)
+	p.finishedTasks = make(map[string]map[string]*FinishedTask)
+}
+
+func (p *Pool) Close() error {
+	p.flush()
+
+	return nil
 }

@@ -97,5 +97,11 @@ func (s *Server) Close() error {
 
 	s.closing = true
 
+	err := s.sparallelServer.Close()
+
+	if err != nil {
+		return err
+	}
+
 	return errs.Err(s.listener.Close())
 }

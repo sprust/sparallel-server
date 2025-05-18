@@ -13,9 +13,10 @@ type ActiveWorker struct {
 }
 
 type FinishedTask struct {
-	Task     *Task
-	Response string
-	IsError  bool
+	Task       *Task
+	IsFinished bool
+	Response   string
+	IsError    bool
 }
 
 type ProcessTask struct {

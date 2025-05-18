@@ -2,6 +2,7 @@ package sparallel_server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sparallel_server/internal/helpers"
 	"sparallel_server/pkg/foundation/errs"
@@ -59,7 +60,11 @@ func (s *Server) Start(ctx context.Context) {
 }
 
 func (s *Server) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
-	slog.Info("Adding task to sparallel server...")
+	slog.Info(
+		fmt.Sprintf(
+			"Adding task to group [%s]",
+			groupUuid,
+		))
 
 	return s.pool.AddTask(groupUuid, unixTimeTimeout, payload)
 }
@@ -71,7 +76,7 @@ func (s *Server) CancelTask(taskUuid string) {
 	runningTasks, exists := s.pool.runningTasks[taskUuid]
 
 	if exists {
-		runningTasks.process.Close()
+		_ = runningTasks.process.Close()
 
 		s.pool.DeleteProcess(runningTasks.process.Uuid)
 	}
@@ -99,10 +104,28 @@ func (s *Server) CancelTask(taskUuid string) {
 	}
 }
 
-func (s *Server) DetectFinishedTask(groupUuid string) *FinishedTask {
-	slog.Info("Detecting finished task...")
+func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
+	slog.Info("Detecting finished task for group [" + groupUuid + "]")
 
-	return s.pool.DetectFinishedTask(groupUuid)
+	finishedTask := s.pool.DetectAnyFinishedTask(groupUuid)
+
+	if finishedTask.IsFinished {
+		s.pool.DeleteFinishedTasks(finishedTask)
+	}
+
+	return finishedTask
+}
+
+func (s *Server) Close() error {
+	slog.Warn("Closing sparallel server...")
+
+	for _, process := range s.pool.processesPool {
+		_ = process.Close()
+	}
+
+	_ = s.pool.Close()
+
+	return nil
 }
 
 func (s *Server) tick(ctx context.Context) error {
@@ -115,6 +138,8 @@ func (s *Server) tick(ctx context.Context) error {
 	}
 
 	s.clearFinishedTasks()
+
+	s.startWaitingTasks()
 
 	return nil
 }
@@ -132,8 +157,10 @@ func (s *Server) readTaskResponses() {
 			response = "err:timeout"
 			isError = true
 
-			worker.process.Close()
+			_ = worker.process.Close()
 		} else {
+			slog.Warn("Task [" + worker.task.Uuid + "] reading response from process.")
+
 			processResponse := worker.process.Read()
 
 			if processResponse == nil {
@@ -155,8 +182,40 @@ func (s *Server) readTaskResponses() {
 			IsError:  isError,
 		}
 
+		slog.Warn("Task [" + worker.task.Uuid + "] finished.")
+
 		s.pool.RegisterFinishedTasks(worker, finishedTask)
 	}
+}
+
+func (s *Server) controlProcessesPool(ctx context.Context) error {
+	processUuids := helpers.GetMapKeys(s.pool.processesPool)
+
+	for _, processUuid := range processUuids {
+		process := s.pool.processesPool[processUuid]
+
+		if !process.IsRunning() {
+			slog.Warn("Process[ " + processUuid + "] is not running. Removing it from pool.")
+
+			s.pool.DeleteProcess(processUuid)
+		}
+	}
+
+	needWorkersNumber := s.minWorkersNumber
+
+	for len(s.pool.processesPool) < needWorkersNumber {
+		newProcess, err := CreateProcess(ctx, s.command)
+
+		if err != nil {
+			return errs.Err(err)
+		}
+
+		slog.Info("Process [" + newProcess.Uuid + "] created.")
+
+		s.pool.AddProcess(newProcess)
+	}
+
+	return nil
 }
 
 func (s *Server) clearFinishedTasks() {
@@ -170,39 +229,21 @@ func (s *Server) clearFinishedTasks() {
 
 			if time.Now().Unix()-int64(finishedTask.Task.UnixTimeTimeout) < -int64(20*time.Second) {
 				s.pool.DeleteFinishedTasks(finishedTask)
+
+				slog.Warn("Finished task [" + finishedTask.Task.Uuid + "] deleted.")
 			}
 		}
 	}
 }
 
-func (s *Server) controlProcessesPool(ctx context.Context) error {
-	processUuids := helpers.GetMapKeys(s.pool.processesPool)
+func (s *Server) startWaitingTasks() {
+	activeWorkers := s.pool.CreateActiveWorkers()
 
-	for _, processUuid := range processUuids {
-		process := s.pool.processesPool[processUuid]
-
-		if !process.IsRunning() {
-			slog.Warn("Process " + processUuid + " is not running. Removing it from pool.")
-
-			s.pool.DeleteProcess(processUuid)
-		}
-	}
-
-	needWorkersNumber := s.minWorkersNumber
-
-	for len(s.pool.processesPool) < needWorkersNumber {
-		slog.Info("Creating new process to pool...")
-
-		newProcess, err := CreateProcess(ctx, s.command)
+	for _, activeWorker := range activeWorkers {
+		err := activeWorker.process.Write(activeWorker.task.Payload)
 
 		if err != nil {
-			return errs.Err(err)
+			panic(err)
 		}
-
-		slog.Info("Process " + newProcess.Uuid + " created.")
-
-		s.pool.AddProcess(newProcess)
 	}
-
-	return nil
 }

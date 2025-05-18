@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"sparallel_server/pkg/foundation/errs"
@@ -13,9 +14,9 @@ import (
 
 type Process struct {
 	Uuid   string
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
+	Cmd    *exec.Cmd
+	Stdin  io.WriteCloser
+	Stdout io.ReadCloser
 }
 
 type ProcessResponse struct {
@@ -75,23 +76,31 @@ func CreateProcess(ctx context.Context, command string) (*Process, error) {
 
 	return &Process{
 		Uuid:   uuid.New().String(),
-		cmd:    cmd,
-		stdout: stdout,
-		stdin:  stdin,
+		Cmd:    cmd,
+		Stdout: stdout,
+		Stdin:  stdin,
 	}, nil
 }
 
 func (p *Process) IsRunning() bool {
-	if p.cmd.ProcessState == nil {
+	if p.Cmd.ProcessState == nil {
 		return true
 	}
 
-	return !p.cmd.ProcessState.Exited()
+	return !p.Cmd.ProcessState.Exited()
+}
+
+func (p *Process) Write(data string) error {
+	slog.Info("Write: [" + data + "] to process: [" + p.Uuid + "]")
+
+	_, err := p.Stdin.Write([]byte(data))
+
+	return errs.Err(err)
 }
 
 func (p *Process) Read() *ProcessResponse {
 	buffer := make([]byte, 4096)
-	n, err := p.stdout.Read(buffer)
+	n, err := p.Stdout.Read(buffer)
 
 	if err != nil {
 		if err == io.EOF {
@@ -107,6 +116,8 @@ func (p *Process) Read() *ProcessResponse {
 	return nil
 }
 
-func (p *Process) Close() {
-	_ = p.cmd.Process.Kill()
+func (p *Process) Close() error {
+	err := p.Cmd.Process.Kill()
+
+	return errs.Err(err)
 }

@@ -1,7 +1,6 @@
 package sparallel
 
 import (
-	"fmt"
 	"sparallel_server/internal/services/sparallel_server"
 )
 
@@ -19,12 +18,30 @@ type AddTaskResult struct {
 	Uuid string
 }
 
+type DetectFinishedTaskArgs struct {
+	GroupUuid string
+}
+
+type DetectFinishedTaskResult struct {
+	IsFinished bool
+	Response   string
+	IsError    bool
+}
+
 func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 	task := s.SparallelServer.AddTask(args.GroupUuid, args.UnixTimeout, args.Payload)
 
-	fmt.Println(task)
-
 	reply.Uuid = task.Uuid
+
+	return nil
+}
+
+func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *DetectFinishedTaskResult) error {
+	response := s.SparallelServer.DetectAnyFinishedTask(args.GroupUuid)
+
+	reply.IsFinished = response.IsFinished
+	reply.Response = response.Response
+	reply.IsError = response.IsError
 
 	return nil
 }
