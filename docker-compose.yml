@@ -1,0 +1,11 @@
+services:
+  golang:
+    container_name: sp-golang
+    restart: unless-stopped
+    build:
+      context: ./docker/golang
+    working_dir: /sparallel-server
+    volumes:
+      - ./:/sparallel-server
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
