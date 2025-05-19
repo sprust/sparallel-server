@@ -259,7 +259,18 @@ func (p *Pool) flush() {
 	p.finishedTasks = make(map[string]map[string]*FinishedTask)
 }
 
+func (p *Pool) killAllProcesses() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	for _, process := range p.processesPool {
+		_ = process.Cmd.Process.Kill()
+	}
+}
+
 func (p *Pool) Close() error {
+	p.killAllProcesses()
+
 	p.flush()
 
 	return nil

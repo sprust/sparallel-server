@@ -217,6 +217,8 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 		if !process.IsRunning() {
 			slog.Warn("Process[ " + processUuid + "] is not running. Removing it from pool.")
 
+			_ = process.Close()
+
 			s.pool.DeleteProcess(processUuid)
 		}
 	}
