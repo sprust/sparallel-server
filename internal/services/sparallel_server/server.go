@@ -156,22 +156,6 @@ func (s *Server) Close() error {
 	return nil
 }
 
-func (s *Server) tick(ctx context.Context) error {
-	s.readTaskResponses()
-
-	err := s.controlProcessesPool(ctx)
-
-	if err != nil {
-		return errs.Err(err)
-	}
-
-	s.clearFinishedTasks()
-
-	s.startWaitingTasks()
-
-	return nil
-}
-
 func (s *Server) readTaskResponses() {
 	taskUuids := s.pool.GetRunningTaskKeys()
 
