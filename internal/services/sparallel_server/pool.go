@@ -101,7 +101,6 @@ func (p *Pool) DeleteProcess(processUuid string) {
 	}
 
 	delete(p.runningProcesses, processUuid)
-	//delete(p.runningTasks, runningProcess.task.Uuid)
 }
 
 func (p *Pool) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
@@ -222,7 +221,7 @@ func (p *Pool) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
 		return &FinishedTask{
 			Task:       nil,
 			IsFinished: false,
-			Response:   "task not finished",
+			Response:   "task group not finished",
 			IsError:    false,
 		}
 	}

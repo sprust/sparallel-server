@@ -24,10 +24,11 @@ type ProcessResponse struct {
 	Error error
 }
 
-func CreateProcess(ctx context.Context, command string) (*Process, error) {
+type ProcessFinishedHandler func(processUuid string)
+
+func CreateProcess(ctx context.Context, command string, handler ProcessFinishedHandler) (*Process, error) {
 	parts := strings.Fields(command)
 
-	// Остальные элементы - аргументы
 	var args []string
 
 	if len(parts) > 1 {
@@ -72,12 +73,16 @@ func CreateProcess(ctx context.Context, command string) (*Process, error) {
 		return nil, errs.Err(err)
 	}
 
-	go func(cmd *exec.Cmd) {
+	processUuid := uuid.New().String()
+
+	go func(cmd *exec.Cmd, handler ProcessFinishedHandler, processUuid string) {
 		_ = cmd.Wait()
-	}(cmd)
+
+		handler(processUuid)
+	}(cmd, handler, processUuid)
 
 	return &Process{
-		Uuid:   uuid.New().String(),
+		Uuid:   processUuid,
 		Cmd:    cmd,
 		Stdout: stdout,
 		Stdin:  stdin,

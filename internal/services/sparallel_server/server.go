@@ -2,7 +2,9 @@ package sparallel_server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"runtime"
 	"sparallel_server/pkg/foundation/errs"
 	"sync"
 	"time"
@@ -86,9 +88,39 @@ func (s *Server) Start(ctx context.Context) {
 	for _, ticker := range tickers {
 		go ticker(s)
 	}
+
+	go func() {
+		for !s.closing {
+			time.Sleep(1 * time.Second)
+
+			var mem runtime.MemStats
+
+			stats := SystemStats{
+				NumGoroutine:  uint64(runtime.NumGoroutine()),
+				AllocMiB:      float32(mem.Alloc / 1024 / 1024),
+				TotalAllocMiB: float32(mem.TotalAlloc / 1024 / 1024),
+				SysMiB:        float32(mem.Sys / 1024 / 1024),
+				NumGC:         uint64(mem.NumGC),
+			}
+
+			slog.Debug(
+				fmt.Sprintf(
+					"go=%d\tAlloc=%v_MiB\tTotalAlloc=%v_MiB\tSys=%v_MiB\tNumGC=%v",
+					stats.NumGoroutine,
+					stats.AllocMiB,
+					stats.TotalAllocMiB,
+					stats.SysMiB,
+					stats.NumGC,
+				),
+			)
+		}
+	}()
 }
 
 func (s *Server) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	slog.Debug("Adding task to group [" + groupUuid + "]")
 
 	return s.pool.AddTask(groupUuid, unixTimeTimeout, payload)
@@ -96,6 +128,9 @@ func (s *Server) AddTask(groupUuid string, unixTimeTimeout int, payload string) 
 
 // CancelTask TODO
 func (s *Server) CancelTask(taskUuid string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	slog.Debug("Cancelling task...")
 
 	runningTasks, exists := s.pool.runningTasks[taskUuid]
@@ -130,6 +165,9 @@ func (s *Server) CancelTask(taskUuid string) {
 }
 
 func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	finishedTask := s.pool.DetectAnyFinishedTask(groupUuid)
 
 	if finishedTask.IsFinished {
@@ -140,6 +178,9 @@ func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
 }
 
 func (s *Server) Close() error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	slog.Warn("Closing sparallel server...")
 
 	s.closing = true
@@ -156,6 +197,9 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) readTaskResponses() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	taskUuids := s.pool.GetRunningTaskKeys()
 
 	for _, taskUuid := range taskUuids {
@@ -212,6 +256,9 @@ func (s *Server) readTaskResponses() {
 }
 
 func (s *Server) controlProcessesPool(ctx context.Context) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	processUuids := s.pool.GetProcessPoolKeys()
 
 	for _, processUuid := range processUuids {
@@ -233,7 +280,13 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 	needWorkersNumber := s.minWorkersNumber
 
 	for len(s.pool.processesPool) < needWorkersNumber {
-		newProcess, err := CreateProcess(ctx, s.command)
+		newProcess, err := CreateProcess(
+			ctx,
+			s.command,
+			func(processUuid string) {
+				s.pool.DeleteProcess(processUuid)
+			},
+		)
 
 		if err != nil {
 			return errs.Err(err)
@@ -248,6 +301,9 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 }
 
 func (s *Server) clearFinishedTasks() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	groupUuids := s.pool.GetFinishedGroupKeys()
 
 	for _, groupUuid := range groupUuids {
@@ -270,6 +326,9 @@ func (s *Server) clearFinishedTasks() {
 }
 
 func (s *Server) startWaitingTasks() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	activeWorkers := s.pool.CreateActiveWorkers()
 
 	for _, activeWorker := range activeWorkers {
