@@ -2,6 +2,7 @@ package sparallel_server
 
 import (
 	"github.com/google/uuid"
+	"log/slog"
 	"sparallel_server/internal/helpers"
 	"sync"
 )
@@ -263,8 +264,10 @@ func (p *Pool) killAllProcesses() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
+	slog.Warn("Killing all processes...")
+
 	for _, process := range p.processesPool {
-		_ = process.Cmd.Process.Kill()
+		_ = process.Close()
 	}
 }
 

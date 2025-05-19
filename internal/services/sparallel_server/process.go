@@ -37,6 +37,8 @@ func CreateProcess(ctx context.Context, command string) (*Process, error) {
 	cmd := exec.CommandContext(ctx, parts[0], args...)
 
 	cmd.Cancel = func() error {
+		slog.Warn("Cancel process: " + command)
+
 		err := cmd.Process.Signal(os.Interrupt)
 
 		if err != nil && !errors.Is(err, os.ErrProcessDone) {
