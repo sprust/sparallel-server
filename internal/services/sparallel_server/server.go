@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var server *Server
+
 type Server struct {
 	command                   string
 	minWorkersNumber          int
@@ -31,9 +33,13 @@ func NewServer(
 	workersNumberScaleUp int,
 	workersNumberScaleDown int,
 ) *Server {
+	if server != nil {
+		panic("Sparallel server is already created")
+	}
+
 	slog.Info("Creating sparallel server for [" + command + "] command...")
 
-	return &Server{
+	server = &Server{
 		command:                   command,
 		minWorkersNumber:          minWorkersNumber,
 		maxWorkersNumber:          maxWorkersNumber,
@@ -43,6 +49,8 @@ func NewServer(
 
 		pool: NewPool(),
 	}
+
+	return server
 }
 
 func (s *Server) Start(ctx context.Context) {
