@@ -31,6 +31,34 @@ func NewPool() *Pool {
 	return pool
 }
 
+func (p *Pool) GetRunningTaskKeys() []string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return helpers.GetMapKeys(p.runningTasks)
+}
+
+func (p *Pool) GetRunningTask(taskUuid string) *ActiveWorker {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return p.runningTasks[taskUuid]
+}
+
+func (p *Pool) GetProcessPoolKeys() []string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return helpers.GetMapKeys(p.processesPool)
+}
+
+func (p *Pool) GetProcessPool(processUuid string) *Process {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return p.processesPool[processUuid]
+}
+
 func (p *Pool) GetFinishedGroupKeys() []string {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()

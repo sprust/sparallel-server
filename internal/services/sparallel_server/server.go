@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sparallel_server/internal/helpers"
 	"sparallel_server/pkg/foundation/errs"
 	"sync"
 	"time"
@@ -58,11 +57,29 @@ func (s *Server) Start(ctx context.Context) {
 
 	go func(s *Server) {
 		for {
-			err := s.tick(ctx)
+			s.readTaskResponses()
+		}
+	}(s)
+
+	go func(s *Server) {
+		for {
+			err := s.controlProcessesPool(ctx)
 
 			if err != nil {
-				panic(err)
+				panic(errs.Err(err))
 			}
+		}
+	}(s)
+
+	go func(s *Server) {
+		for {
+			s.clearFinishedTasks()
+		}
+	}(s)
+
+	go func(s *Server) {
+		for {
+			s.startWaitingTasks()
 		}
 	}(s)
 }
@@ -153,10 +170,14 @@ func (s *Server) tick(ctx context.Context) error {
 }
 
 func (s *Server) readTaskResponses() {
-	taskUuids := helpers.GetMapKeys(s.pool.runningTasks)
+	taskUuids := s.pool.GetRunningTaskKeys()
 
 	for _, taskUuid := range taskUuids {
-		worker := s.pool.runningTasks[taskUuid]
+		worker := s.pool.GetRunningTask(taskUuid)
+
+		if worker == nil {
+			continue
+		}
 
 		var response string
 		var isError bool
@@ -197,10 +218,14 @@ func (s *Server) readTaskResponses() {
 }
 
 func (s *Server) controlProcessesPool(ctx context.Context) error {
-	processUuids := helpers.GetMapKeys(s.pool.processesPool)
+	processUuids := s.pool.GetProcessPoolKeys()
 
 	for _, processUuid := range processUuids {
-		process := s.pool.processesPool[processUuid]
+		process := s.pool.GetProcessPool(processUuid)
+
+		if process == nil {
+			continue
+		}
 
 		if !process.IsRunning() {
 			slog.Warn("Process[ " + processUuid + "] is not running. Removing it from pool.")
