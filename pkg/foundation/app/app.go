@@ -79,6 +79,9 @@ func (a *App) Start(commandName string, args []string) {
 
 	signals := make(chan os.Signal)
 
+	defer signal.Stop(signals)
+	defer close(signals)
+
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
 	go func() {

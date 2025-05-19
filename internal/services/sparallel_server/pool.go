@@ -92,15 +92,16 @@ func (p *Pool) DeleteProcess(processUuid string) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
-	delete(p.processesPool, processUuid)
+	if process, exists := p.processesPool[processUuid]; exists {
+		_ = process.Close()
 
-	_, exists := p.runningProcesses[processUuid]
-
-	if !exists {
-		return
+		delete(p.processesPool, processUuid)
 	}
 
-	delete(p.runningProcesses, processUuid)
+	if _, exists := p.runningProcesses[processUuid]; exists {
+		delete(p.runningProcesses, processUuid)
+	}
+
 }
 
 func (p *Pool) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
