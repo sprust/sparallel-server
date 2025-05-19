@@ -31,6 +31,27 @@ func NewPool() *Pool {
 	return pool
 }
 
+func (p *Pool) GetFinishedGroupKeys() []string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return helpers.GetMapKeys(p.finishedTasks)
+}
+
+func (p *Pool) GetFinishedTaskKeys(groupUuid string) []string {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return helpers.GetMapKeys(p.finishedTasks[groupUuid])
+}
+
+func (p *Pool) FindFinishedTask(groupUuid string, taskUuid string) *FinishedTask {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	return p.finishedTasks[groupUuid][taskUuid]
+}
+
 func (p *Pool) AddProcess(process *Process) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()

@@ -219,13 +219,17 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 }
 
 func (s *Server) clearFinishedTasks() {
-	groupUuids := helpers.GetMapKeys(s.pool.finishedTasks)
+	groupUuids := s.pool.GetFinishedGroupKeys()
 
 	for _, groupUuid := range groupUuids {
-		taskUuids := helpers.GetMapKeys(s.pool.finishedTasks[groupUuid])
+		taskUuids := s.pool.GetFinishedTaskKeys(groupUuid)
 
 		for _, taskUuid := range taskUuids {
-			finishedTask := s.pool.finishedTasks[groupUuid][taskUuid]
+			finishedTask := s.pool.FindFinishedTask(groupUuid, taskUuid)
+
+			if finishedTask == nil {
+				continue
+			}
 
 			if time.Now().Unix()-int64(finishedTask.Task.UnixTimeTimeout) < -int64(20*time.Second) {
 				s.pool.DeleteFinishedTasks(finishedTask)
