@@ -2,7 +2,6 @@ package sparallel_server
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sparallel_server/pkg/foundation/errs"
 	"sync"
@@ -88,18 +87,14 @@ func (s *Server) Start(ctx context.Context) {
 }
 
 func (s *Server) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
-	slog.Info(
-		fmt.Sprintf(
-			"Adding task to group [%s]",
-			groupUuid,
-		))
+	slog.Debug("Adding task to group [" + groupUuid + "]")
 
 	return s.pool.AddTask(groupUuid, unixTimeTimeout, payload)
 }
 
 // CancelTask TODO
 func (s *Server) CancelTask(taskUuid string) {
-	slog.Info("Cancelling task...")
+	slog.Debug("Cancelling task...")
 
 	runningTasks, exists := s.pool.runningTasks[taskUuid]
 
@@ -133,8 +128,6 @@ func (s *Server) CancelTask(taskUuid string) {
 }
 
 func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
-	slog.Info("Detecting finished task for group [" + groupUuid + "]")
-
 	finishedTask := s.pool.DetectAnyFinishedTask(groupUuid)
 
 	if finishedTask.IsFinished {
@@ -170,12 +163,14 @@ func (s *Server) readTaskResponses() {
 		var isError bool
 
 		if time.Now().Unix()-int64(worker.task.UnixTimeTimeout) < -int64(5*time.Second) {
+			slog.Debug("Task [" + worker.task.Uuid + "] closing by timeout.")
+
 			response = "err:timeout"
 			isError = true
 
 			_ = worker.process.Close()
 		} else {
-			slog.Warn("Task [" + worker.task.Uuid + "] reading response from process.")
+			slog.Debug("Task [" + worker.task.Uuid + "] reading response from process.")
 
 			processResponse := worker.process.Read()
 
@@ -198,7 +193,7 @@ func (s *Server) readTaskResponses() {
 			IsError:  isError,
 		}
 
-		slog.Warn("Task [" + worker.task.Uuid + "] finished.")
+		slog.Debug("Task [" + worker.task.Uuid + "] finished.")
 
 		s.pool.RegisterFinishedTasks(worker, finishedTask)
 	}
@@ -215,7 +210,7 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 		}
 
 		if !process.IsRunning() {
-			slog.Warn("Process[ " + processUuid + "] is not running. Removing it from pool.")
+			slog.Debug("Process[ " + processUuid + "] is not running. Removing it from pool.")
 
 			_ = process.Close()
 
@@ -232,7 +227,7 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 			return errs.Err(err)
 		}
 
-		slog.Info("Process [" + newProcess.Uuid + "] created.")
+		slog.Debug("Process [" + newProcess.Uuid + "] created.")
 
 		s.pool.AddProcess(newProcess)
 	}
@@ -256,7 +251,7 @@ func (s *Server) clearFinishedTasks() {
 			if time.Now().Unix()-int64(finishedTask.Task.UnixTimeTimeout) < -int64(20*time.Second) {
 				s.pool.DeleteFinishedTasks(finishedTask)
 
-				slog.Warn("Finished task [" + finishedTask.Task.Uuid + "] deleted.")
+				slog.Debug("Finished task [" + finishedTask.Task.Uuid + "] deleted.")
 			}
 		}
 	}

@@ -37,7 +37,7 @@ func CreateProcess(ctx context.Context, command string) (*Process, error) {
 	cmd := exec.CommandContext(ctx, parts[0], args...)
 
 	cmd.Cancel = func() error {
-		slog.Warn("Cancel process: " + command)
+		slog.Debug("Cancel process: " + command)
 
 		err := cmd.Process.Signal(os.Interrupt)
 
@@ -93,7 +93,7 @@ func (p *Process) IsRunning() bool {
 }
 
 func (p *Process) Write(data string) error {
-	slog.Info("Write: [" + data + "] to process: [" + p.Uuid + "]")
+	slog.Debug("Write: [" + data + "] to process: [" + p.Uuid + "]")
 
 	_, err := p.Stdin.Write([]byte(data))
 
