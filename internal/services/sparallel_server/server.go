@@ -55,33 +55,36 @@ func NewServer(
 func (s *Server) Start(ctx context.Context) {
 	slog.Info("Starting sparallel server...")
 
-	go func(s *Server) {
-		for {
-			s.readTaskResponses()
-		}
-	}(s)
-
-	go func(s *Server) {
-		for {
-			err := s.controlProcessesPool(ctx)
-
-			if err != nil {
-				panic(errs.Err(err))
+	tickers := []func(s *Server){
+		func(s *Server) {
+			for {
+				s.readTaskResponses()
 			}
-		}
-	}(s)
+		},
+		func(s *Server) {
+			for {
+				err := s.controlProcessesPool(ctx)
 
-	go func(s *Server) {
-		for {
-			s.clearFinishedTasks()
-		}
-	}(s)
+				if err != nil {
+					panic(errs.Err(err))
+				}
+			}
+		},
+		func(s *Server) {
+			for {
+				s.clearFinishedTasks()
+			}
+		},
+		func(s *Server) {
+			for {
+				s.startWaitingTasks()
+			}
+		},
+	}
 
-	go func(s *Server) {
-		for {
-			s.startWaitingTasks()
-		}
-	}(s)
+	for _, ticker := range tickers {
+		go ticker(s)
+	}
 }
 
 func (s *Server) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
