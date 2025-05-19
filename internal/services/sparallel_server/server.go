@@ -21,6 +21,8 @@ type Server struct {
 	pool *Pool
 
 	mutex sync.Mutex
+
+	closing bool
 }
 
 func NewServer(
@@ -56,12 +58,12 @@ func (s *Server) Start(ctx context.Context) {
 
 	tickers := []func(s *Server){
 		func(s *Server) {
-			for {
+			for !s.closing {
 				s.readTaskResponses()
 			}
 		},
 		func(s *Server) {
-			for {
+			for !s.closing {
 				err := s.controlProcessesPool(ctx)
 
 				if err != nil {
@@ -70,12 +72,12 @@ func (s *Server) Start(ctx context.Context) {
 			}
 		},
 		func(s *Server) {
-			for {
+			for !s.closing {
 				s.clearFinishedTasks()
 			}
 		},
 		func(s *Server) {
-			for {
+			for !s.closing {
 				s.startWaitingTasks()
 			}
 		},
@@ -140,8 +142,12 @@ func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
 func (s *Server) Close() error {
 	slog.Warn("Closing sparallel server...")
 
+	s.closing = true
+
 	for _, process := range s.pool.processesPool {
 		_ = process.Close()
+
+		s.pool.DeleteProcess(process.Uuid)
 	}
 
 	_ = s.pool.Close()
@@ -169,6 +175,8 @@ func (s *Server) readTaskResponses() {
 			isError = true
 
 			_ = worker.process.Close()
+
+			s.pool.DeleteProcess(worker.process.Uuid)
 		} else {
 			slog.Debug("Task [" + worker.task.Uuid + "] reading response from process.")
 
@@ -181,6 +189,10 @@ func (s *Server) readTaskResponses() {
 			if processResponse.Error != nil {
 				response = processResponse.Error.Error()
 				isError = true
+
+				_ = worker.process.Close()
+
+				s.pool.DeleteProcess(worker.process.Uuid)
 			} else {
 				response = processResponse.Data
 				isError = false
@@ -264,7 +276,11 @@ func (s *Server) startWaitingTasks() {
 		err := activeWorker.process.Write(activeWorker.task.Payload)
 
 		if err != nil {
-			panic(err)
+			slog.Error("Failed to write to process: " + err.Error())
+
+			_ = activeWorker.process.Close()
+
+			s.pool.DeleteProcess(activeWorker.process.Uuid)
 		}
 	}
 }
