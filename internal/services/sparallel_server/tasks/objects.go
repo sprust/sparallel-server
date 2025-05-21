@@ -11,16 +11,16 @@ type Tasks struct {
 }
 
 type SubTasks struct {
-	mutex sync.Mutex
-	items map[string]*Group // map[GroupUuid]
-	count atomic.Int32
+	mutex  sync.Mutex
+	groups map[string]*Group // map[GroupUuid]
+	count  atomic.Int32
 }
 
 func NewSubTasks() *SubTasks {
 	return &SubTasks{
-		mutex: sync.Mutex{},
-		items: make(map[string]*Group),
-		count: atomic.Int32{},
+		mutex:  sync.Mutex{},
+		groups: make(map[string]*Group),
+		count:  atomic.Int32{},
 	}
 }
 

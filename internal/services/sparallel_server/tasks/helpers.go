@@ -6,7 +6,7 @@ func addTaskToGroup(task *Task, subTasks *SubTasks) {
 	subTasks.mutex.Lock()
 	defer subTasks.mutex.Unlock()
 
-	group, exists := subTasks.items[task.GroupUuid]
+	group, exists := subTasks.groups[task.GroupUuid]
 
 	if !exists {
 		group = &Group{
@@ -15,7 +15,7 @@ func addTaskToGroup(task *Task, subTasks *SubTasks) {
 			tasks:       make(map[string]*Task),
 		}
 
-		subTasks.items[task.GroupUuid] = group
+		subTasks.groups[task.GroupUuid] = group
 	}
 
 	group.tasks[task.Uuid] = task
@@ -27,7 +27,7 @@ func deleteTaskFromGroup(task *Task, subTasks *SubTasks) bool {
 	subTasks.mutex.Lock()
 	defer subTasks.mutex.Unlock()
 
-	group, exists := subTasks.items[task.GroupUuid]
+	group, exists := subTasks.groups[task.GroupUuid]
 
 	if !exists {
 		return false
@@ -36,7 +36,7 @@ func deleteTaskFromGroup(task *Task, subTasks *SubTasks) bool {
 	delete(group.tasks, task.Uuid)
 
 	if len(group.tasks) == 0 {
-		delete(subTasks.items, task.GroupUuid)
+		delete(subTasks.groups, task.GroupUuid)
 	}
 
 	subTasks.count.Add(-1)
@@ -52,14 +52,14 @@ func flushFirstRotten(subTasks *SubTasks) {
 	subTasks.mutex.Lock()
 	defer subTasks.mutex.Unlock()
 
-	for _, group := range subTasks.items {
+	for _, group := range subTasks.groups {
 		if !group.IsTimeout() {
 			continue
 		}
 
 		itemsCount := len(group.tasks)
 
-		delete(subTasks.items, group.uuid)
+		delete(subTasks.groups, group.uuid)
 
 		if itemsCount > 0 {
 			subTasks.count.Add(-int32(itemsCount))

@@ -19,14 +19,14 @@ func (t *Tasks) TakeWaiting() *Task {
 	t.waiting.mutex.Lock()
 	defer t.waiting.mutex.Unlock()
 
-	for _, group := range t.waiting.items {
+	for _, group := range t.waiting.groups {
 		for _, task := range group.tasks {
 			delete(group.tasks, task.Uuid)
 
 			t.waiting.count.Add(-1)
 
 			if len(group.tasks) == 0 {
-				delete(t.waiting.items, group.uuid)
+				delete(t.waiting.groups, group.uuid)
 			}
 
 			return task
@@ -48,7 +48,7 @@ func (t *Tasks) TakeFinished(groupUuid string) *Task {
 	t.finished.mutex.Lock()
 	defer t.finished.mutex.Unlock()
 
-	group, exists := t.finished.items[groupUuid]
+	group, exists := t.finished.groups[groupUuid]
 
 	if !exists {
 		return nil
@@ -60,7 +60,7 @@ func (t *Tasks) TakeFinished(groupUuid string) *Task {
 		t.finished.count.Add(-1)
 
 		if len(group.tasks) == 0 {
-			delete(t.finished.items, group.uuid)
+			delete(t.finished.groups, group.uuid)
 		}
 
 		return task
