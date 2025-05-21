@@ -3,9 +3,14 @@ package sparallel_server
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"log/slog"
 	"runtime"
+	"sparallel_server/internal/services/sparallel_server/processes"
+	"sparallel_server/internal/services/sparallel_server/tasks"
+	"sparallel_server/internal/services/sparallel_server/workers"
 	"sparallel_server/pkg/foundation/errs"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,9 +24,13 @@ type Server struct {
 	workersNumberScaleUp      int
 	workersNumberScaleDown    int
 
-	pool *Pool
+	workers *workers.Workers
+	tasks   *tasks.Tasks
 
-	closing bool
+	closing atomic.Bool
+
+	tickersCtx       context.Context
+	tickersCtxCancel context.CancelFunc
 }
 
 func NewServer(
@@ -46,7 +55,8 @@ func NewServer(
 		workersNumberScaleUp:      workersNumberScaleUp,
 		workersNumberScaleDown:    workersNumberScaleDown,
 
-		pool: NewPool(),
+		workers: workers.NewWorkers(),
+		tasks:   tasks.NewTasks(),
 	}
 
 	return server
@@ -55,39 +65,23 @@ func NewServer(
 func (s *Server) Start(ctx context.Context) {
 	slog.Info("Starting sparallel server...")
 
-	tickers := []func(s *Server){
-		func(s *Server) {
-			for !s.closing {
-				s.readTaskResponses()
-			}
-		},
-		func(s *Server) {
-			for !s.closing {
-				err := s.controlProcessesPool(ctx)
+	s.tickersCtx, s.tickersCtxCancel = context.WithCancel(ctx)
 
-				if err != nil {
-					panic(errs.Err(err))
-				}
-			}
-		},
-		func(s *Server) {
-			for !s.closing {
-				s.clearFinishedTasks()
-			}
-		},
-		func(s *Server) {
-			for !s.closing {
-				s.startWaitingTasks()
-			}
-		},
-	}
+	tickers := []func(ctx context.Context, s *Server){
+		func(ctx context.Context, s *Server) {
+			err := s.tickControlWorkers(ctx)
 
-	for _, ticker := range tickers {
-		go ticker(s)
-	}
-
-	go func() {
-		for !s.closing {
+			if err != nil {
+				panic(errs.Err(err))
+			}
+		},
+		func(ctx context.Context, s *Server) {
+			s.tickClearFinishedTasks()
+		},
+		func(ctx context.Context, s *Server) {
+			s.tickHandleTasks(ctx)
+		},
+		func(ctx context.Context, s *Server) {
 			time.Sleep(1 * time.Second)
 
 			var mem runtime.MemStats
@@ -110,56 +104,40 @@ func (s *Server) Start(ctx context.Context) {
 					stats.NumGC,
 				),
 			)
-		}
-	}()
+		},
+	}
+
+	for _, ticker := range tickers {
+		go func(ctx context.Context, ticker func(ctx context.Context, s *Server)) {
+			for !s.closing.Load() {
+				ticker(ctx, s)
+			}
+		}(s.tickersCtx, ticker)
+	}
 }
 
-func (s *Server) AddTask(groupUuid string, unixTimeTimeout int, payload string) *Task {
+func (s *Server) AddTask(groupUuid string, unixTimeout int, payload string) *tasks.Task {
 	slog.Debug("Adding task to group [" + groupUuid + "]")
 
-	return s.pool.AddTask(groupUuid, unixTimeTimeout, payload)
-}
-
-// CancelTask TODO
-func (s *Server) CancelTask(taskUuid string) {
-	slog.Debug("Cancelling task...")
-
-	runningTasks, exists := s.pool.runningTasks[taskUuid]
-
-	if exists {
-		_ = runningTasks.process.Close()
-
-		s.pool.DeleteProcess(runningTasks.process.Uuid)
+	newTask := &tasks.Task{
+		GroupUuid:   groupUuid,
+		Uuid:        uuid.New().String(),
+		UnixTimeout: unixTimeout,
+		Payload:     payload,
 	}
 
-	task, exists := s.pool.waitingTasks[taskUuid]
+	s.tasks.AddWaiting(newTask)
 
-	if exists {
-		delete(s.pool.waitingTasks, taskUuid)
+	return newTask
+}
 
-		group, exists := s.pool.finishedTasks[task.GroupUuid]
+func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
+	finishedTask := s.tasks.TakeFinished(groupUuid)
 
-		if exists {
-			finishedTask, exists := group[taskUuid]
-
-			if exists {
-				s.pool.DeleteFinishedTasks(finishedTask)
-			}
+	if finishedTask == nil {
+		return &tasks.Task{
+			IsFinished: false,
 		}
-	}
-
-	_, exists = s.pool.runningTasks[taskUuid]
-
-	if exists {
-		delete(s.pool.runningTasks, taskUuid)
-	}
-}
-
-func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
-	finishedTask := s.pool.DetectAnyFinishedTask(groupUuid)
-
-	if finishedTask.IsFinished {
-		s.pool.DeleteFinishedTasks(finishedTask)
 	}
 
 	return finishedTask
@@ -168,102 +146,28 @@ func (s *Server) DetectAnyFinishedTask(groupUuid string) *FinishedTask {
 func (s *Server) Close() error {
 	slog.Warn("Closing sparallel server...")
 
-	s.closing = true
+	s.closing.Store(true)
 
-	for _, process := range s.pool.processesPool {
-		_ = process.Close()
+	s.tickersCtxCancel()
 
-		s.pool.DeleteProcess(process.Uuid)
-	}
-
-	_ = s.pool.Close()
+	_ = s.workers.Close()
 
 	return nil
 }
 
-func (s *Server) readTaskResponses() {
-	taskUuids := s.pool.GetRunningTaskKeys()
-
-	for _, taskUuid := range taskUuids {
-		worker := s.pool.GetRunningTask(taskUuid)
-
-		if worker == nil {
-			continue
-		}
-
-		var response string
-		var isError bool
-
-		if time.Now().Unix()-int64(worker.task.UnixTimeTimeout) < -int64(5*time.Second) {
-			slog.Debug("Task [" + worker.task.Uuid + "] closing by timeout.")
-
-			response = "err:timeout"
-			isError = true
-
-			_ = worker.process.Close()
-
-			s.pool.DeleteProcess(worker.process.Uuid)
-		} else {
-			slog.Debug("Task [" + worker.task.Uuid + "] reading response from process.")
-
-			processResponse := worker.process.Read()
-
-			if processResponse == nil {
-				continue
-			}
-
-			if processResponse.Error != nil {
-				response = processResponse.Error.Error()
-				isError = true
-
-				_ = worker.process.Close()
-
-				s.pool.DeleteProcess(worker.process.Uuid)
-			} else {
-				response = processResponse.Data
-				isError = false
-			}
-		}
-
-		finishedTask := &FinishedTask{
-			Task:     worker.task,
-			Response: response,
-			IsError:  isError,
-		}
-
-		slog.Debug("Task [" + worker.task.Uuid + "] finished.")
-
-		s.pool.RegisterFinishedTasks(worker, finishedTask)
-	}
-}
-
-func (s *Server) controlProcessesPool(ctx context.Context) error {
-	processUuids := s.pool.GetProcessPoolKeys()
-
-	for _, processUuid := range processUuids {
-		process := s.pool.GetProcessPool(processUuid)
-
-		if process == nil {
-			continue
-		}
-
-		if !process.IsRunning() {
-			slog.Debug("Process[ " + processUuid + "] is not running. Removing it from pool.")
-
-			_ = process.Close()
-
-			s.pool.DeleteProcess(processUuid)
-		}
-	}
-
+func (s *Server) tickControlWorkers(ctx context.Context) error {
 	needWorkersNumber := s.minWorkersNumber
 
-	for len(s.pool.processesPool) < needWorkersNumber {
-		newProcess, err := CreateProcess(
+	for s.workers.Count() < needWorkersNumber {
+		newProcess, err := processes.CreateProcess(
 			ctx,
 			s.command,
 			func(processUuid string) {
-				s.pool.DeleteProcess(processUuid)
+				task := s.workers.DeleteAndGetTask(processUuid)
+
+				if task != nil {
+					s.tasks.AddWaiting(task)
+				}
 			},
 		)
 
@@ -273,46 +177,94 @@ func (s *Server) controlProcessesPool(ctx context.Context) error {
 
 		slog.Debug("Process [" + newProcess.Uuid + "] created.")
 
-		s.pool.AddProcess(newProcess)
+		s.workers.Add(newProcess)
 	}
 
 	return nil
 }
 
-func (s *Server) clearFinishedTasks() {
-	groupUuids := s.pool.GetFinishedGroupKeys()
-
-	for _, groupUuid := range groupUuids {
-		taskUuids := s.pool.GetFinishedTaskKeys(groupUuid)
-
-		for _, taskUuid := range taskUuids {
-			finishedTask := s.pool.FindFinishedTask(groupUuid, taskUuid)
-
-			if finishedTask == nil {
-				continue
-			}
-
-			if time.Now().Unix()-int64(finishedTask.Task.UnixTimeTimeout) < -int64(20*time.Second) {
-				s.pool.DeleteFinishedTasks(finishedTask)
-
-				slog.Debug("Finished task [" + finishedTask.Task.Uuid + "] deleted.")
-			}
-		}
-	}
+func (s *Server) tickClearFinishedTasks() {
+	s.tasks.FlushRottenFinished()
 }
 
-func (s *Server) startWaitingTasks() {
-	activeWorkers := s.pool.CreateActiveWorkers()
+func (s *Server) tickHandleTasks(ctx context.Context) {
+	task := s.tasks.TakeWaiting()
 
-	for _, activeWorker := range activeWorkers {
-		err := activeWorker.process.Write(activeWorker.task.Payload)
-
-		if err != nil {
-			slog.Error("Failed to write to process: " + err.Error())
-
-			_ = activeWorker.process.Close()
-
-			s.pool.DeleteProcess(activeWorker.process.Uuid)
-		}
+	if task == nil {
+		return
 	}
+
+	go func(_ context.Context, task *tasks.Task) {
+		s.handleTask(task)
+	}(ctx, task)
+}
+
+func (s *Server) handleTask(task *tasks.Task) {
+	worker := s.workers.Take()
+
+	if worker == nil {
+		s.tasks.AddWaiting(task)
+
+		return
+	}
+
+	s.workers.Busy(worker, task)
+
+	process := worker.GetProcess()
+
+	err := process.Write(task.Payload)
+
+	if err != nil {
+		s.tasks.AddWaiting(task)
+
+		s.workers.DeleteAndGetTask(process.Uuid)
+
+		_ = process.Close()
+
+		return
+	}
+
+	for {
+		response := process.Read()
+
+		if response == nil {
+			if task.IsTimeout() {
+				task.IsFinished = true
+				task.Response = "timeout"
+				task.IsError = true
+
+				s.tasks.AddFinished(task)
+
+				break
+			}
+
+			continue
+		}
+
+		if response.Error != nil {
+			s.workers.DeleteAndGetTask(process.Uuid)
+
+			_ = process.Close()
+
+			s.tasks.AddWaiting(task)
+
+			task.IsFinished = true
+			task.Response = response.Error.Error()
+			task.IsError = true
+
+			s.tasks.AddFinished(task)
+
+			break
+		}
+
+		task.IsFinished = true
+		task.Response = response.Data
+		task.IsError = false
+
+		s.tasks.AddFinished(task)
+
+		break
+	}
+
+	s.workers.Free(worker)
 }

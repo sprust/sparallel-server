@@ -1,4 +1,4 @@
-package sparallel_server
+package processes
 
 import (
 	"context"
@@ -19,14 +19,14 @@ type Process struct {
 	Stdout io.ReadCloser
 }
 
-type ProcessResponse struct {
+type Response struct {
 	Data  string
 	Error error
 }
 
-type ProcessFinishedHandler func(processUuid string)
+type FinishedHandler func(processUuid string)
 
-func CreateProcess(ctx context.Context, command string, handler ProcessFinishedHandler) (*Process, error) {
+func CreateProcess(ctx context.Context, command string, handler FinishedHandler) (*Process, error) {
 	parts := strings.Fields(command)
 
 	var args []string
@@ -75,11 +75,11 @@ func CreateProcess(ctx context.Context, command string, handler ProcessFinishedH
 
 	processUuid := uuid.New().String()
 
-	go func(cmd *exec.Cmd, handler ProcessFinishedHandler, processUuid string) {
+	go func(_ context.Context, cmd *exec.Cmd, handler FinishedHandler, processUuid string) {
 		_ = cmd.Wait()
 
 		handler(processUuid)
-	}(cmd, handler, processUuid)
+	}(ctx, cmd, handler, processUuid)
 
 	return &Process{
 		Uuid:   processUuid,
@@ -105,7 +105,7 @@ func (p *Process) Write(data string) error {
 	return errs.Err(err)
 }
 
-func (p *Process) Read() *ProcessResponse {
+func (p *Process) Read() *Response {
 	buffer := make([]byte, 4096)
 	n, err := p.Stdout.Read(buffer)
 
@@ -113,11 +113,11 @@ func (p *Process) Read() *ProcessResponse {
 		if err == io.EOF {
 			return nil
 		}
-		return &ProcessResponse{Error: errs.Err(err)}
+		return &Response{Error: errs.Err(err)}
 	}
 
 	if n > 0 {
-		return &ProcessResponse{Data: string(buffer[:n])}
+		return &Response{Data: string(buffer[:n])}
 	}
 
 	return nil
