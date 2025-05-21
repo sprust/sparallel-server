@@ -10,8 +10,8 @@ import (
 type Workers struct {
 	mutex sync.Mutex
 
-	// map[WorkerUuid]
-	all map[string]*Worker
+	// map[ProcessUuid]
+	pw map[string]*Worker
 
 	// map[WorkerUuid]
 	free map[string]*Worker

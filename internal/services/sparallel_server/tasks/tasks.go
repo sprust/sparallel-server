@@ -69,26 +69,20 @@ func (t *Tasks) TakeFinished(groupUuid string) *Task {
 	return nil
 }
 
-func (t *Tasks) FlushRottenFinished() {
-	if t.finished.count.Load() == 0 {
-		return
-	}
-
-	t.finished.mutex.Lock()
-	defer t.finished.mutex.Unlock()
-
-	for _, group := range t.finished.items {
-		if !group.IsTimeout() {
-			continue
-		}
-
-		delete(t.finished.items, group.uuid)
-
-		break
-	}
+func (t *Tasks) FlushRottenTasks() {
+	flushFirstRotten(t.waiting)
+	flushFirstRotten(t.finished)
 }
 
 func (t *Tasks) Delete(task *Task) {
 	deleteTaskFromGroup(task, t.waiting)
 	deleteTaskFromGroup(task, t.finished)
+}
+
+func (t *Tasks) WaitingCount() int {
+	return int(t.waiting.count.Load())
+}
+
+func (t *Tasks) FinishedCount() int {
+	return int(t.finished.count.Load())
 }

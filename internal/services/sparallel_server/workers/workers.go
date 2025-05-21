@@ -8,7 +8,7 @@ import (
 
 func NewWorkers() *Workers {
 	return &Workers{
-		all:  make(map[string]*Worker),
+		pw:   make(map[string]*Worker),
 		free: make(map[string]*Worker),
 		busy: make(map[string]*Worker),
 	}
@@ -25,14 +25,15 @@ func (w *Workers) Add(process *processes.Process) {
 		process: process,
 	}
 
-	w.all[workerUuid] = newWorker
+	w.pw[process.Uuid] = newWorker
+
 	w.free[workerUuid] = newWorker
 
 	w.totalCount.Add(1)
 	w.freeCount.Add(1)
 }
 
-func (w *Workers) Take() *Worker {
+func (w *Workers) Take(task *tasks.Task) *Worker {
 	if w.freeCount.Load() == 0 {
 		return nil
 	}
@@ -40,26 +41,29 @@ func (w *Workers) Take() *Worker {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	for wu, worker := range w.free {
-		delete(w.free, wu)
+	var selectedWorker *Worker
+
+	for _, worker := range w.free {
+		delete(w.free, worker.uuid)
 
 		w.freeCount.Add(-1)
 
-		return worker
+		selectedWorker = worker
+
+		break
 	}
 
-	return nil
-}
+	if selectedWorker == nil {
+		return nil
+	}
 
-func (w *Workers) Busy(worker *Worker, task *tasks.Task) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
+	selectedWorker.task = task
 
-	worker.task = task
-
-	w.busy[worker.uuid] = worker
+	w.busy[selectedWorker.uuid] = selectedWorker
 
 	w.busyCount.Add(1)
+
+	return selectedWorker
 }
 
 func (w *Workers) Free(worker *Worker) {
@@ -81,7 +85,7 @@ func (w *Workers) DeleteAndGetTask(processUuid string) *tasks.Task {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	worker, exists := w.all[processUuid]
+	worker, exists := w.pw[processUuid]
 
 	if !exists {
 		return nil
@@ -99,7 +103,7 @@ func (w *Workers) DeleteAndGetTask(processUuid string) *tasks.Task {
 		w.busyCount.Add(-1)
 	}
 
-	delete(w.all, worker.uuid)
+	delete(w.pw, processUuid)
 
 	w.totalCount.Add(-1)
 
@@ -122,11 +126,11 @@ func (w *Workers) Close() error {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	for _, worker := range w.all {
+	for _, worker := range w.pw {
 		_ = worker.process.Close()
 	}
 
-	w.all = make(map[string]*Worker)
+	w.pw = make(map[string]*Worker)
 	w.free = make(map[string]*Worker)
 	w.busy = make(map[string]*Worker)
 

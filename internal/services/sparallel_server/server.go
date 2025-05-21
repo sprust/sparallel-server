@@ -31,6 +31,12 @@ type Server struct {
 
 	tickersCtx       context.Context
 	tickersCtxCancel context.CancelFunc
+
+	countAddTask                atomic.Uint64
+	countDetectAnyFinishedTask  atomic.Uint64
+	countTickControlWorkers     atomic.Uint64
+	countTickClearFinishedTasks atomic.Uint64
+	countTickHandleTasks        atomic.Uint64
 }
 
 func NewServer(
@@ -96,12 +102,40 @@ func (s *Server) Start(ctx context.Context) {
 
 			slog.Debug(
 				fmt.Sprintf(
-					"go=%d\tAlloc=%v_MiB\tTotalAlloc=%v_MiB\tSys=%v_MiB\tNumGC=%v",
+					"sys:\tgo=%d\tAlloc=%v_MiB\tTotAlloc=%v_MiB\tSys=%v_MiB\tNumGC=%v",
 					stats.NumGoroutine,
 					stats.AllocMiB,
 					stats.TotalAllocMiB,
 					stats.SysMiB,
 					stats.NumGC,
+				),
+			)
+
+			slog.Debug(
+				fmt.Sprintf(
+					"work:\ttot=%d\twf=%v_MiB\twf=%v",
+					s.workers.Count(),
+					s.workers.FreeCount(),
+					s.workers.BusyCount(),
+				),
+			)
+
+			slog.Debug(
+				fmt.Sprintf(
+					"tasks:\twait=%d\tfin=%v",
+					s.tasks.WaitingCount(),
+					s.tasks.FinishedCount(),
+				),
+			)
+
+			slog.Debug(
+				fmt.Sprintf(
+					"calls:\tat=%d\tdetFin=%v\ttCW=%v\ttCFT=%v\ttHT=%v",
+					s.countAddTask.Load(),
+					s.countDetectAnyFinishedTask.Load(),
+					s.countTickControlWorkers.Load(),
+					s.countTickClearFinishedTasks.Load(),
+					s.countTickHandleTasks.Load(),
 				),
 			)
 		},
@@ -119,6 +153,8 @@ func (s *Server) Start(ctx context.Context) {
 func (s *Server) AddTask(groupUuid string, unixTimeout int, payload string) *tasks.Task {
 	slog.Debug("Adding task to group [" + groupUuid + "]")
 
+	go s.countAddTask.Add(1)
+
 	newTask := &tasks.Task{
 		GroupUuid:   groupUuid,
 		Uuid:        uuid.New().String(),
@@ -132,6 +168,8 @@ func (s *Server) AddTask(groupUuid string, unixTimeout int, payload string) *tas
 }
 
 func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
+	go s.countDetectAnyFinishedTask.Add(1)
+
 	finishedTask := s.tasks.TakeFinished(groupUuid)
 
 	if finishedTask == nil {
@@ -144,11 +182,11 @@ func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
 }
 
 func (s *Server) Close() error {
-	slog.Warn("Closing sparallel server...")
-
 	s.closing.Store(true)
 
 	s.tickersCtxCancel()
+
+	slog.Warn("Closing sparallel server...")
 
 	_ = s.workers.Close()
 
@@ -156,6 +194,8 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) tickControlWorkers(ctx context.Context) error {
+	go s.countTickControlWorkers.Add(1)
+
 	needWorkersNumber := s.minWorkersNumber
 
 	for s.workers.Count() < needWorkersNumber {
@@ -184,10 +224,14 @@ func (s *Server) tickControlWorkers(ctx context.Context) error {
 }
 
 func (s *Server) tickClearFinishedTasks() {
-	s.tasks.FlushRottenFinished()
+	go s.countTickClearFinishedTasks.Add(1)
+
+	s.tasks.FlushRottenTasks()
 }
 
 func (s *Server) tickHandleTasks(ctx context.Context) {
+	go s.countTickHandleTasks.Add(1)
+
 	task := s.tasks.TakeWaiting()
 
 	if task == nil {
@@ -200,21 +244,25 @@ func (s *Server) tickHandleTasks(ctx context.Context) {
 }
 
 func (s *Server) handleTask(task *tasks.Task) {
-	worker := s.workers.Take()
+	slog.Debug("Handling task [" + task.Uuid + "]")
+
+	worker := s.workers.Take(task)
 
 	if worker == nil {
+		slog.Debug("Not found worker for task [" + task.Uuid + "]")
+
 		s.tasks.AddWaiting(task)
 
 		return
 	}
-
-	s.workers.Busy(worker, task)
 
 	process := worker.GetProcess()
 
 	err := process.Write(task.Payload)
 
 	if err != nil {
+		slog.Debug("Error start task [" + task.Uuid + "]")
+
 		s.tasks.AddWaiting(task)
 
 		s.workers.DeleteAndGetTask(process.Uuid)
@@ -225,19 +273,21 @@ func (s *Server) handleTask(task *tasks.Task) {
 	}
 
 	for {
+		if task.IsTimeout() {
+			task.IsFinished = true
+			task.Response = "timeout"
+			task.IsError = true
+
+			s.tasks.AddFinished(task)
+
+			s.workers.Free(worker)
+
+			break
+		}
+
 		response := process.Read()
 
 		if response == nil {
-			if task.IsTimeout() {
-				task.IsFinished = true
-				task.Response = "timeout"
-				task.IsError = true
-
-				s.tasks.AddFinished(task)
-
-				break
-			}
-
 			continue
 		}
 
@@ -246,25 +296,22 @@ func (s *Server) handleTask(task *tasks.Task) {
 
 			_ = process.Close()
 
-			s.tasks.AddWaiting(task)
-
 			task.IsFinished = true
 			task.Response = response.Error.Error()
 			task.IsError = true
 
 			s.tasks.AddFinished(task)
 
-			break
+			return
 		}
 
 		task.IsFinished = true
 		task.Response = response.Data
 		task.IsError = false
 
+		s.workers.Free(worker)
 		s.tasks.AddFinished(task)
 
 		break
 	}
-
-	s.workers.Free(worker)
 }

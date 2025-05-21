@@ -23,6 +23,8 @@ type DetectFinishedTaskArgs struct {
 }
 
 type DetectFinishedTaskResult struct {
+	GroupUuid  string
+	Uuid       string
 	IsFinished bool
 	Response   string
 	IsError    bool
@@ -39,6 +41,8 @@ func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *DetectFinishedTaskResult) error {
 	response := s.SparallelServer.DetectAnyFinishedTask(args.GroupUuid)
 
+	reply.GroupUuid = response.GroupUuid
+	reply.Uuid = response.Uuid
 	reply.IsFinished = response.IsFinished
 	reply.Response = response.Response
 	reply.IsError = response.IsError

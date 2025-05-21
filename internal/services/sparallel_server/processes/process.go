@@ -113,6 +113,11 @@ func (p *Process) Read() *Response {
 		if err == io.EOF {
 			return nil
 		}
+
+		if p.Cmd.ProcessState != nil && p.Cmd.ProcessState.Exited() {
+			return &Response{Error: errors.New("worker down: " + p.Cmd.ProcessState.String())}
+		}
+
 		return &Response{Error: errs.Err(err)}
 	}
 
