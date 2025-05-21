@@ -1,27 +1,8 @@
 package tasks
 
-import (
-	"sync"
-	"sync/atomic"
-)
-
 type Tasks struct {
 	waiting  *SubTasks
 	finished *SubTasks
-}
-
-type SubTasks struct {
-	mutex  sync.Mutex
-	groups map[string]*Group // map[GroupUuid]
-	count  atomic.Int32
-}
-
-func NewSubTasks() *SubTasks {
-	return &SubTasks{
-		mutex:  sync.Mutex{},
-		groups: make(map[string]*Group),
-		count:  atomic.Int32{},
-	}
 }
 
 type Group struct {
@@ -36,7 +17,7 @@ func (g *Group) IsTimeout() bool {
 
 type Task struct {
 	GroupUuid   string
-	Uuid        string
+	TaskUuid    string
 	UnixTimeout int
 	Payload     string
 	IsFinished  bool

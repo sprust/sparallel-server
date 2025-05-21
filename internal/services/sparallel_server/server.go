@@ -3,7 +3,6 @@ package sparallel_server
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"log/slog"
 	"runtime"
 	"sparallel_server/internal/services/sparallel_server/processes"
@@ -31,12 +30,6 @@ type Server struct {
 
 	tickersCtx       context.Context
 	tickersCtxCancel context.CancelFunc
-
-	countAddTask                atomic.Uint64
-	countDetectAnyFinishedTask  atomic.Uint64
-	countTickControlWorkers     atomic.Uint64
-	countTickClearFinishedTasks atomic.Uint64
-	countTickHandleTasks        atomic.Uint64
 }
 
 func NewServer(
@@ -113,7 +106,7 @@ func (s *Server) Start(ctx context.Context) {
 
 			slog.Debug(
 				fmt.Sprintf(
-					"work:\ttot=%d\twf=%v_MiB\twf=%v",
+					"work:\ttot=%d\tfree=%v\tbusy=%v",
 					s.workers.Count(),
 					s.workers.FreeCount(),
 					s.workers.BusyCount(),
@@ -125,17 +118,6 @@ func (s *Server) Start(ctx context.Context) {
 					"tasks:\twait=%d\tfin=%v",
 					s.tasks.WaitingCount(),
 					s.tasks.FinishedCount(),
-				),
-			)
-
-			slog.Debug(
-				fmt.Sprintf(
-					"calls:\tat=%d\tdetFin=%v\ttCW=%v\ttCFT=%v\ttHT=%v",
-					s.countAddTask.Load(),
-					s.countDetectAnyFinishedTask.Load(),
-					s.countTickControlWorkers.Load(),
-					s.countTickClearFinishedTasks.Load(),
-					s.countTickHandleTasks.Load(),
 				),
 			)
 		},
@@ -150,14 +132,12 @@ func (s *Server) Start(ctx context.Context) {
 	}
 }
 
-func (s *Server) AddTask(groupUuid string, unixTimeout int, payload string) *tasks.Task {
-	slog.Debug("Adding task to group [" + groupUuid + "]")
-
-	go s.countAddTask.Add(1)
+func (s *Server) AddTask(groupUuid string, taskUuid string, unixTimeout int, payload string) *tasks.Task {
+	slog.Debug("Adding task [" + taskUuid + "] to group [" + groupUuid + "]")
 
 	newTask := &tasks.Task{
 		GroupUuid:   groupUuid,
-		Uuid:        uuid.New().String(),
+		TaskUuid:    taskUuid,
 		UnixTimeout: unixTimeout,
 		Payload:     payload,
 	}
@@ -168,12 +148,11 @@ func (s *Server) AddTask(groupUuid string, unixTimeout int, payload string) *tas
 }
 
 func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
-	go s.countDetectAnyFinishedTask.Add(1)
-
 	finishedTask := s.tasks.TakeFinished(groupUuid)
 
 	if finishedTask == nil {
 		return &tasks.Task{
+			GroupUuid:  groupUuid,
 			IsFinished: false,
 		}
 	}
@@ -194,8 +173,6 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) tickControlWorkers(ctx context.Context) error {
-	go s.countTickControlWorkers.Add(1)
-
 	needWorkersNumber := s.minWorkersNumber
 
 	for s.workers.Count() < needWorkersNumber {
@@ -203,11 +180,7 @@ func (s *Server) tickControlWorkers(ctx context.Context) error {
 			ctx,
 			s.command,
 			func(processUuid string) {
-				task := s.workers.DeleteAndGetTask(processUuid)
-
-				if task != nil {
-					s.tasks.AddWaiting(task)
-				}
+				s.workers.DeleteAndGetTask(processUuid)
 			},
 		)
 
@@ -224,13 +197,13 @@ func (s *Server) tickControlWorkers(ctx context.Context) error {
 }
 
 func (s *Server) tickClearFinishedTasks() {
-	go s.countTickClearFinishedTasks.Add(1)
-
 	s.tasks.FlushRottenTasks()
 }
 
 func (s *Server) tickHandleTasks(ctx context.Context) {
-	go s.countTickHandleTasks.Add(1)
+	if s.workers.FreeCount() == 0 {
+		return
+	}
 
 	task := s.tasks.TakeWaiting()
 
@@ -244,12 +217,12 @@ func (s *Server) tickHandleTasks(ctx context.Context) {
 }
 
 func (s *Server) handleTask(task *tasks.Task) {
-	slog.Debug("Handling task [" + task.Uuid + "]")
+	slog.Debug("Handling task [" + task.TaskUuid + "]")
 
 	worker := s.workers.Take(task)
 
 	if worker == nil {
-		slog.Debug("Not found worker for task [" + task.Uuid + "]")
+		slog.Debug("Not found worker for task [" + task.TaskUuid + "]")
 
 		s.tasks.AddWaiting(task)
 
@@ -261,7 +234,7 @@ func (s *Server) handleTask(task *tasks.Task) {
 	err := process.Write(task.Payload)
 
 	if err != nil {
-		slog.Debug("Error start task [" + task.Uuid + "]")
+		slog.Debug("Error start task [" + task.TaskUuid + "]. Re waiting.")
 
 		s.tasks.AddWaiting(task)
 
@@ -302,7 +275,7 @@ func (s *Server) handleTask(task *tasks.Task) {
 
 			s.tasks.AddFinished(task)
 
-			return
+			break
 		}
 
 		task.IsFinished = true

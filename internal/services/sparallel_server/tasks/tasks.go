@@ -1,5 +1,10 @@
 package tasks
 
+import (
+	"log/slog"
+	"strconv"
+)
+
 func NewTasks() *Tasks {
 	return &Tasks{
 		waiting:  NewSubTasks(),
@@ -8,81 +13,58 @@ func NewTasks() *Tasks {
 }
 
 func (t *Tasks) AddWaiting(task *Task) {
-	addTaskToGroup(task, t.waiting)
+	slog.Debug("Task [" + task.TaskUuid + "] waiting")
+
+	t.waiting.AddTask(task)
 }
 
 func (t *Tasks) TakeWaiting() *Task {
-	if t.waiting.count.Load() == 0 {
+	task := t.waiting.Pop()
+
+	if task == nil {
 		return nil
 	}
 
-	t.waiting.mutex.Lock()
-	defer t.waiting.mutex.Unlock()
+	slog.Debug("Task [" + task.TaskUuid + "] taken")
 
-	for _, group := range t.waiting.groups {
-		for _, task := range group.tasks {
-			delete(group.tasks, task.Uuid)
-
-			t.waiting.count.Add(-1)
-
-			if len(group.tasks) == 0 {
-				delete(t.waiting.groups, group.uuid)
-			}
-
-			return task
-		}
-	}
-
-	return nil
+	return task
 }
 
 func (t *Tasks) AddFinished(task *Task) {
-	addTaskToGroup(task, t.finished)
+	slog.Debug("Task [" + task.TaskUuid + "] finished")
+
+	t.finished.AddTask(task)
 }
 
 func (t *Tasks) TakeFinished(groupUuid string) *Task {
-	if t.finished.count.Load() == 0 {
-		return nil
-	}
-
-	t.finished.mutex.Lock()
-	defer t.finished.mutex.Unlock()
-
-	group, exists := t.finished.groups[groupUuid]
-
-	if !exists {
-		return nil
-	}
-
-	for _, task := range group.tasks {
-		delete(group.tasks, task.Uuid)
-
-		t.finished.count.Add(-1)
-
-		if len(group.tasks) == 0 {
-			delete(t.finished.groups, group.uuid)
-		}
-
-		return task
-	}
-
-	return nil
+	return t.finished.TakeFirstByGroupUuid(groupUuid)
 }
 
 func (t *Tasks) FlushRottenTasks() {
-	flushFirstRotten(t.waiting)
-	flushFirstRotten(t.finished)
+	var deletedCount int
+
+	deletedCount = t.waiting.FlushFirstRotten()
+
+	if deletedCount > 0 {
+		slog.Debug("Flushed rotten waiting tasks: " + strconv.Itoa(deletedCount))
+	}
+
+	deletedCount = t.finished.FlushFirstRotten()
+
+	if deletedCount > 0 {
+		slog.Debug("Flushed rotten finished tasks: " + strconv.Itoa(deletedCount))
+	}
 }
 
 func (t *Tasks) Delete(task *Task) {
-	deleteTaskFromGroup(task, t.waiting)
-	deleteTaskFromGroup(task, t.finished)
+	t.waiting.DeleteTaskFromGroup(task)
+	t.finished.DeleteTaskFromGroup(task)
 }
 
 func (t *Tasks) WaitingCount() int {
-	return int(t.waiting.count.Load())
+	return t.waiting.Count()
 }
 
 func (t *Tasks) FinishedCount() int {
-	return int(t.finished.count.Load())
+	return t.finished.Count()
 }

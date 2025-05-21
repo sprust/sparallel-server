@@ -81,14 +81,14 @@ func (w *Workers) Free(worker *Worker) {
 	w.freeCount.Add(1)
 }
 
-func (w *Workers) DeleteAndGetTask(processUuid string) *tasks.Task {
+func (w *Workers) DeleteAndGetTask(processUuid string) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
 	worker, exists := w.pw[processUuid]
 
 	if !exists {
-		return nil
+		return
 	}
 
 	if _, exists = w.free[worker.uuid]; exists {
@@ -106,8 +106,6 @@ func (w *Workers) DeleteAndGetTask(processUuid string) *tasks.Task {
 	delete(w.pw, processUuid)
 
 	w.totalCount.Add(-1)
-
-	return worker.task
 }
 
 func (w *Workers) Count() int {
