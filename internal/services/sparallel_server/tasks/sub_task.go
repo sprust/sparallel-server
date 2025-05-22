@@ -4,6 +4,8 @@ import (
 	"sync"
 )
 
+// TODO: FIFO for groups
+
 type SubTasks struct {
 	mutex  sync.Mutex
 	groups map[string]*Group // map[GroupUuid]
