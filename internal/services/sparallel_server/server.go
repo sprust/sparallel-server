@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+// TODO: implement CancelGroup feature
+
 var server *Server
 
 type Server struct {
