@@ -56,9 +56,14 @@ func (t *Tasks) FlushRottenTasks() {
 	}
 }
 
-func (t *Tasks) Delete(task *Task) {
-	t.waiting.DeleteTaskFromGroup(task)
-	t.finished.DeleteTaskFromGroup(task)
+func (t *Tasks) DeleteGroup(groupUuid string) {
+	t.waiting.DeleteGroup(groupUuid)
+	t.finished.DeleteGroup(groupUuid)
+}
+
+func (t *Tasks) DeleteTask(task *Task) {
+	t.waiting.DeleteTask(task)
+	t.finished.DeleteTask(task)
 }
 
 func (t *Tasks) WaitingCount() int {

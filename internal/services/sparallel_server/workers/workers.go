@@ -81,31 +81,28 @@ func (w *Workers) Free(worker *Worker) {
 	w.freeCount.Add(1)
 }
 
-func (w *Workers) DeleteAndGetTask(processUuid string) {
+func (w *Workers) DeleteByProcess(processUuid string) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	worker, exists := w.pw[processUuid]
+	w.deleteByProcessUuid(processUuid)
+}
 
-	if !exists {
-		return
+func (w *Workers) DeleteByGroup(groupUuid string) []*processes.Process {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	var deletedProcesses []*processes.Process
+
+	for _, worker := range w.pw {
+		if worker.task.GroupUuid == groupUuid {
+			deletedProcess := w.deleteByProcessUuid(worker.process.Uuid)
+
+			deletedProcesses = append(deletedProcesses, deletedProcess)
+		}
 	}
 
-	if _, exists = w.free[worker.uuid]; exists {
-		delete(w.free, worker.uuid)
-
-		w.freeCount.Add(-1)
-	}
-
-	if _, exists = w.busy[worker.uuid]; exists {
-		delete(w.busy, worker.uuid)
-
-		w.busyCount.Add(-1)
-	}
-
-	delete(w.pw, processUuid)
-
-	w.totalCount.Add(-1)
+	return deletedProcesses
 }
 
 func (w *Workers) Count() int {
@@ -133,4 +130,30 @@ func (w *Workers) Close() error {
 	w.busy = make(map[string]*Worker)
 
 	return nil
+}
+
+func (w *Workers) deleteByProcessUuid(processUuid string) *processes.Process {
+	worker, exists := w.pw[processUuid]
+
+	if !exists {
+		return nil
+	}
+
+	if _, exists = w.free[worker.uuid]; exists {
+		delete(w.free, worker.uuid)
+
+		w.freeCount.Add(-1)
+	}
+
+	if _, exists = w.busy[worker.uuid]; exists {
+		delete(w.busy, worker.uuid)
+
+		w.busyCount.Add(-1)
+	}
+
+	delete(w.pw, processUuid)
+
+	w.totalCount.Add(-1)
+
+	return worker.process
 }

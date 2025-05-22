@@ -37,14 +37,21 @@ func (s *SubTasks) AddTask(task *Task) {
 	group.tasks[task.TaskUuid] = task
 }
 
-func (s *SubTasks) DeleteTaskFromGroup(task *Task) bool {
+func (s *SubTasks) DeleteGroup(groupUuid string) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	delete(s.groups, groupUuid)
+}
+
+func (s *SubTasks) DeleteTask(task *Task) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	group, exists := s.groups[task.GroupUuid]
 
 	if !exists {
-		return false
+		return
 	}
 
 	delete(group.tasks, task.TaskUuid)
@@ -52,8 +59,6 @@ func (s *SubTasks) DeleteTaskFromGroup(task *Task) bool {
 	if len(group.tasks) == 0 {
 		delete(s.groups, task.GroupUuid)
 	}
-
-	return true
 }
 
 func (s *SubTasks) Pop() *Task {

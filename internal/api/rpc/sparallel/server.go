@@ -31,6 +31,14 @@ type DetectFinishedTaskResult struct {
 	IsError    bool
 }
 
+type CancelGroupArgs struct {
+	GroupUuid string
+}
+
+type CancelGroupResult struct {
+	GroupUuid string
+}
+
 func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 	task := s.SparallelServer.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
 
@@ -47,6 +55,14 @@ func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *Dete
 	reply.IsFinished = response.IsFinished
 	reply.Response = response.Response
 	reply.IsError = response.IsError
+
+	return nil
+}
+
+func (s *Server) CancelGroup(args *CancelGroupArgs, reply *CancelGroupResult) error {
+	s.SparallelServer.CancelGroup(args.GroupUuid)
+
+	reply.GroupUuid = args.GroupUuid
 
 	return nil
 }

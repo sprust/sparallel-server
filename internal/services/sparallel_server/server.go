@@ -13,8 +13,6 @@ import (
 	"time"
 )
 
-// TODO: implement CancelGroup feature
-
 var server *Server
 
 type Server struct {
@@ -162,6 +160,19 @@ func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
 	return finishedTask
 }
 
+// CancelGroup TODO: test
+func (s *Server) CancelGroup(groupUuid string) {
+	s.tasks.DeleteGroup(groupUuid)
+
+	deletedProcesses := s.workers.DeleteByGroup(groupUuid)
+
+	for _, deletedProcess := range deletedProcesses {
+		if deletedProcess != nil {
+			_ = deletedProcess.Close()
+		}
+	}
+}
+
 func (s *Server) Close() error {
 	s.closing.Store(true)
 
@@ -182,7 +193,7 @@ func (s *Server) tickControlWorkers(ctx context.Context) error {
 			ctx,
 			s.command,
 			func(processUuid string) {
-				s.workers.DeleteAndGetTask(processUuid)
+				s.workers.DeleteByProcess(processUuid)
 			},
 		)
 
@@ -240,7 +251,7 @@ func (s *Server) handleTask(task *tasks.Task) {
 
 		s.tasks.AddWaiting(task)
 
-		s.workers.DeleteAndGetTask(process.Uuid)
+		s.workers.DeleteByProcess(process.Uuid)
 
 		_ = process.Close()
 
@@ -267,7 +278,7 @@ func (s *Server) handleTask(task *tasks.Task) {
 		}
 
 		if response.Error != nil {
-			s.workers.DeleteAndGetTask(process.Uuid)
+			s.workers.DeleteByProcess(process.Uuid)
 
 			_ = process.Close()
 
