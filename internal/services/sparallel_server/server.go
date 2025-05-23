@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os/exec"
 	"runtime"
 	"sparallel_server/internal/services/sparallel_server/processes"
 	"sparallel_server/internal/services/sparallel_server/tasks"
@@ -73,9 +74,13 @@ func (s *Server) Start(ctx context.Context) {
 			if err != nil {
 				panic(errs.Err(err))
 			}
+
+			time.Sleep(1 * time.Second)
 		},
 		func(ctx context.Context, s *Server) {
 			s.tickClearFinishedTasks()
+
+			time.Sleep(5 * time.Second)
 		},
 		func(ctx context.Context, s *Server) {
 			s.tickHandleTasks(ctx)
@@ -192,7 +197,9 @@ func (s *Server) tickControlWorkers(ctx context.Context) error {
 		newProcess, err := processes.CreateProcess(
 			ctx,
 			s.command,
-			func(processUuid string) {
+			func(processUuid string, cmd *exec.Cmd) {
+				slog.Warn("Process [" + processUuid + "] finished: " + cmd.ProcessState.String())
+
 				s.workers.DeleteByProcess(processUuid)
 			},
 		)

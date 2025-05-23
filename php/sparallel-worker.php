@@ -11,7 +11,7 @@ while (true) {
         continue;
     }
 
-    ob_clean();
+    fflush(STDOUT);
     fwrite(STDOUT, "pong: $data");
     fflush(STDIN);
 }

@@ -95,6 +95,10 @@ func (w *Workers) DeleteByGroup(groupUuid string) []*processes.Process {
 	var deletedProcesses []*processes.Process
 
 	for _, worker := range w.pw {
+		if worker.task == nil {
+			continue
+		}
+
 		if worker.task.GroupUuid == groupUuid {
 			deletedProcess := w.deleteByProcessUuid(worker.process.Uuid)
 

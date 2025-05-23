@@ -24,7 +24,7 @@ type Response struct {
 	Error error
 }
 
-type FinishedHandler func(processUuid string)
+type FinishedHandler func(processUuid string, cmd *exec.Cmd)
 
 func CreateProcess(ctx context.Context, command string, handler FinishedHandler) (*Process, error) {
 	parts := strings.Fields(command)
@@ -78,7 +78,7 @@ func CreateProcess(ctx context.Context, command string, handler FinishedHandler)
 	go func(_ context.Context, cmd *exec.Cmd, handler FinishedHandler, processUuid string) {
 		_ = cmd.Wait()
 
-		handler(processUuid)
+		handler(processUuid, cmd)
 	}(ctx, cmd, handler, processUuid)
 
 	return &Process{
@@ -98,7 +98,7 @@ func (p *Process) IsRunning() bool {
 }
 
 func (p *Process) Write(data string) error {
-	slog.Debug("Write: [" + data + "] to process: [" + p.Uuid + "]")
+	slog.Debug("Write data [" + data + "] to process: [" + p.Uuid + "]")
 
 	_, err := p.Stdin.Write([]byte(data))
 
