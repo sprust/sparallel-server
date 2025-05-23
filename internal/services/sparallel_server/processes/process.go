@@ -3,6 +3,7 @@ package processes
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"log/slog"
@@ -98,7 +99,7 @@ func (p *Process) IsRunning() bool {
 }
 
 func (p *Process) Write(data string) error {
-	slog.Debug("Write data [" + data + "] to process: [" + p.Uuid + "]")
+	slog.Debug("Write data with len [" + fmt.Sprint(len(data)) + "] to process: [" + p.Uuid + "]")
 
 	_, err := p.Stdin.Write([]byte(data))
 
