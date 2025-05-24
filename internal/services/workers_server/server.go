@@ -1,4 +1,4 @@
-package sparallel_server
+package workers_server
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os/exec"
 	"runtime"
-	"sparallel_server/internal/services/sparallel_server/processes"
-	"sparallel_server/internal/services/sparallel_server/tasks"
-	"sparallel_server/internal/services/sparallel_server/workers"
+	"sparallel_server/internal/services/workers_server/processes"
+	"sparallel_server/internal/services/workers_server/tasks"
+	"sparallel_server/internal/services/workers_server/workers"
 	"sparallel_server/pkg/foundation/errs"
 	"sync/atomic"
 	"time"
@@ -45,7 +45,7 @@ func NewService(
 		panic("service is already created")
 	}
 
-	slog.Info("Creating sparallel service for [" + command + "] command...")
+	slog.Info("Creating workers service for [" + command + "] command...")
 
 	service = &Service{
 		command:                   command,
@@ -57,13 +57,15 @@ func NewService(
 
 		workers: workers.NewWorkers(),
 		tasks:   tasks.NewTasks(),
+
+		closing: atomic.Bool{},
 	}
 
 	return service
 }
 
 func (s *Service) Start(ctx context.Context) {
-	slog.Info("Starting sparallel service...")
+	slog.Info("Starting workers service...")
 
 	s.tickersCtx, s.tickersCtxCancel = context.WithCancel(ctx)
 
@@ -183,7 +185,7 @@ func (s *Service) Close() error {
 
 	s.tickersCtxCancel()
 
-	slog.Warn("Closing sparallel service...")
+	slog.Warn("Closing workers service...")
 
 	_ = s.workers.Close()
 

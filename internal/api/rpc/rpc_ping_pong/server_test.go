@@ -1,4 +1,4 @@
-package ping_pong
+package rpc_ping_pong
 
 import (
 	"github.com/joho/godotenv"
@@ -32,13 +32,13 @@ func TestPingPong_Ping(t *testing.T) {
 
 	message := time.Now().String()
 
-	args := PingPongArgs{
+	args := PingArgs{
 		Message: message,
 	}
 
-	var result PingPongResult
+	var result PingResult
 
-	err = client.Call("PingPong.Ping", args, &result)
+	err = client.Call("PingPongServer.Ping", args, &result)
 
 	assert.NoError(t, err)
 

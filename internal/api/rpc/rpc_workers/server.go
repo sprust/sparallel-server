@@ -1,25 +1,26 @@
-package workers
+package rpc_workers
 
 import (
 	"context"
+	"log/slog"
 	"sparallel_server/internal/config"
-	"sparallel_server/internal/services/sparallel_server"
+	"sparallel_server/internal/services/workers_server"
 )
 
-var workers *Server
+var server *WorkersServer
 
-type Server struct {
-	service *sparallel_server.Service
+type WorkersServer struct {
+	service *workers_server.Service
 }
 
-func NewWorkersServer(ctx context.Context) *Server {
-	if workers != nil {
-		panic("the workers is already created")
+func NewServer(ctx context.Context) *WorkersServer {
+	if server != nil {
+		panic("workers server is already created")
 	}
 
 	cfg := config.GetConfig()
 
-	service := sparallel_server.NewService(
+	service := workers_server.NewService(
 		cfg.GetCommand(),
 		cfg.GetMinWorkersNumber(),
 		cfg.GetMaxWorkersNumber(),
@@ -30,7 +31,7 @@ func NewWorkersServer(ctx context.Context) *Server {
 
 	service.Start(ctx)
 
-	server := &Server{
+	server = &WorkersServer{
 		service: service,
 	}
 
@@ -68,7 +69,7 @@ type CancelGroupResult struct {
 	GroupUuid string
 }
 
-func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
+func (s *WorkersServer) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 	task := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
 
 	reply.Uuid = task.TaskUuid
@@ -76,7 +77,7 @@ func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 	return nil
 }
 
-func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *DetectFinishedTaskResult) error {
+func (s *WorkersServer) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *DetectFinishedTaskResult) error {
 	response := s.service.DetectAnyFinishedTask(args.GroupUuid)
 
 	reply.GroupUuid = response.GroupUuid
@@ -88,10 +89,16 @@ func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *Dete
 	return nil
 }
 
-func (s *Server) CancelGroup(args *CancelGroupArgs, reply *CancelGroupResult) error {
+func (s *WorkersServer) CancelGroup(args *CancelGroupArgs, reply *CancelGroupResult) error {
 	s.service.CancelGroup(args.GroupUuid)
 
 	reply.GroupUuid = args.GroupUuid
 
 	return nil
+}
+
+func (p *WorkersServer) Close() error {
+	slog.Warn("Closing workers server")
+
+	return p.service.Close()
 }

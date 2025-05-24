@@ -1,4 +1,4 @@
-package sparallel_server
+package workers_server
 
 type SystemStats struct {
 	NumGoroutine  uint64

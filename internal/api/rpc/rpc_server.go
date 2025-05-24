@@ -2,22 +2,23 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
+	"io"
 	"log/slog"
 	"net"
 	"net/rpc"
-	"sparallel_server/internal/api/rpc/ping_pong"
-	"sparallel_server/internal/api/rpc/proxy_mongodb"
-	"sparallel_server/internal/api/rpc/workers"
-	"sparallel_server/internal/services/sparallel_server"
+	"sparallel_server/internal/api/rpc/rpc_ping_pong"
+	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
+	"sparallel_server/internal/api/rpc/rpc_workers"
 	"sparallel_server/pkg/foundation/errs"
 )
 
 type Server struct {
-	rpcPort         string
-	listener        net.Listener
-	sparallelServer *sparallel_server.Service
-	closing         bool
+	rpcPort  string
+	listener net.Listener
+	servers  []io.Closer
+	closing  bool
 }
 
 func NewServer(rpcPort string) *Server {
@@ -29,7 +30,6 @@ func NewServer(rpcPort string) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-
 	listener, err := net.Listen("tcp", ":"+s.rpcPort)
 
 	if err != nil {
@@ -38,14 +38,16 @@ func (s *Server) Run(ctx context.Context) error {
 
 	s.listener = listener
 
-	for _, function := range s.getFunctions(ctx) {
-		err = rpc.Register(function)
+	for _, server := range s.getServers(ctx) {
+		err = rpc.Register(server)
 
 		if err != nil {
 			slog.Error(err.Error())
 
 			return errs.Err(err)
 		}
+
+		s.servers = append(s.servers, server)
 	}
 
 	slog.Info("Listening on port " + s.rpcPort)
@@ -71,24 +73,52 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) getFunctions(ctx context.Context) []any {
-	return []any{
-		&ping_pong.PingPong{},
-		workers.NewWorkersServer(ctx),
-		proxy_mongodb.NewMongodbProxyServer(ctx),
-	}
-}
-
 func (s *Server) Close() error {
 	slog.Warn("Closing rpc server...")
 
 	s.closing = true
 
-	err := s.sparallelServer.Close()
+	var errors []error
 
-	if err != nil {
-		return err
+	for _, server := range s.servers {
+		err := server.Close()
+
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
-	return errs.Err(s.listener.Close())
+	err := errs.Err(s.listener.Close())
+
+	if err != nil {
+		errors = append(errors, err)
+	}
+
+	return errs.Err(joinErrors(errors))
+}
+
+func (s *Server) getServers(ctx context.Context) []io.Closer {
+	return []io.Closer{
+		rpc_ping_pong.NewServer(),
+		rpc_workers.NewServer(ctx),
+		rpc_proxy_mongodb.NewServer(ctx),
+	}
+}
+
+func joinErrors(errors []error) error {
+	if len(errors) == 0 {
+		return nil
+	}
+
+	errorMessage := ""
+
+	for i, err := range errors {
+		if i > 0 {
+			errorMessage += "; "
+		}
+
+		errorMessage += err.Error()
+	}
+
+	return fmt.Errorf(errorMessage)
 }

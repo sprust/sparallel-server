@@ -1,4 +1,4 @@
-package proxy_mongodb
+package rpc_proxy_mongodb
 
 type InsertOneArgs struct {
 	Connection string
@@ -26,7 +26,7 @@ type InsertOneResult struct {
 	InsertedID interface{}
 }
 
-func (p *Server) InsertOne(args *InsertOneArgs, reply *InsertOneReply) error {
+func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneReply) error {
 	operation, err := p.service.InsertOne(
 		args.Connection,
 		args.Database,
@@ -43,7 +43,7 @@ func (p *Server) InsertOne(args *InsertOneArgs, reply *InsertOneReply) error {
 	return nil
 }
 
-func (p *Server) InsertOneResult(args *InsertOneResultArgs, reply *InsertOneResultReply) error {
+func (p *ProxyMongodbServer) InsertOneResult(args *InsertOneResultArgs, reply *InsertOneResultReply) error {
 	operation := p.service.InsertOneResult(args.ActionUuid)
 
 	if !operation.IsFinished() {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"log/slog"
 	"sync"
 )
 
@@ -47,4 +48,19 @@ func (c *Connections) Collection(connName string, dbName string, collName string
 	}
 
 	return client.Database(dbName).Collection(collName), nil
+}
+
+func (c *Connections) Close() error {
+	slog.Warn("Closing mongodb connections")
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	for _, client := range c.clients {
+		if err := client.Disconnect(c.ctx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -15,6 +15,8 @@ type Service struct {
 }
 
 func NewService(ctx context.Context) *Service {
+	slog.Info("Starting mongodb-proxy service...")
+
 	return &Service{
 		ctx:           ctx,
 		connections:   connections.NewConnections(ctx),
@@ -48,9 +50,7 @@ func (s *Service) InsertOneResult(actionUuid string) *insert_one.Operation {
 }
 
 func (s *Service) Close() error {
-	// TODO
-
 	slog.Warn("Closing mongodb-proxy service")
 
-	return nil
+	return s.connections.Close()
 }
