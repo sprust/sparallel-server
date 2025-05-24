@@ -107,7 +107,7 @@ func (p *Process) Write(data string) error {
 }
 
 func (p *Process) Read() *Response {
-	buffer := make([]byte, 4096)
+	buffer := make([]byte, 64*1024)
 	n, err := p.Stdout.Read(buffer)
 
 	if err != nil {
