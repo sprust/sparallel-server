@@ -2,7 +2,6 @@ package connections
 
 import (
 	"context"
-	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log/slog"
@@ -16,7 +15,10 @@ type Connections struct {
 }
 
 func NewConnections(ctx context.Context) *Connections {
-	return &Connections{ctx: ctx}
+	return &Connections{
+		ctx:     ctx,
+		clients: make(map[string]*mongo.Client),
+	}
 }
 
 func (c *Connections) Collection(connName string, dbName string, collName string) (*mongo.Collection, error) {
@@ -27,14 +29,14 @@ func (c *Connections) Collection(connName string, dbName string, collName string
 
 	if !exists {
 		// TODO
-		host := "TODO"
-		port := 1234
-		user := "TODO"
-		password := "TODO"
+		//host := "TODO"
+		//port := 1234
+		//user := "TODO"
+		//password := "TODO"
+		//
+		//uri := fmt.Sprintf("mongodb://%s:%s@%s:%d", user, password, host, port)
 
-		uri := fmt.Sprintf("mongodb://%s:%s@%s:%d", user, password, host, port)
-
-		clientOptions := options.Client().ApplyURI(uri)
+		clientOptions := options.Client().ApplyURI(connName)
 
 		var err error
 

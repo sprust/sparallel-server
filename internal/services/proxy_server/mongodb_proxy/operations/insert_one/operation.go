@@ -2,8 +2,10 @@ package insert_one
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/objects"
 )
 
@@ -43,7 +45,15 @@ func (a *Operation) Result() (*mongo.InsertOneResult, error) {
 }
 
 func (a *Operation) execute(ctx context.Context, document interface{}) {
+	slog.Info("InsertOne executing: " + a.uuid)
+
 	a.result, a.resultError = a.collection.InsertOne(ctx, document)
 
 	a.isFinished = true
+
+	if a.resultError != nil {
+		slog.Error("InsertOne error: " + a.uuid + " " + a.resultError.Error())
+	} else {
+		slog.Info("InsertOne success: " + a.uuid + " " + fmt.Sprintf("%s", a.result.InsertedID))
+	}
 }

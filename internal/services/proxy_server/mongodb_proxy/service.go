@@ -11,7 +11,7 @@ import (
 type Service struct {
 	ctx           context.Context
 	connections   *connections.Connections
-	insertOneList *insert_one.List
+	insertOneList *insert_one.Operations
 }
 
 func NewService(ctx context.Context) *Service {
@@ -20,7 +20,7 @@ func NewService(ctx context.Context) *Service {
 	return &Service{
 		ctx:           ctx,
 		connections:   connections.NewConnections(ctx),
-		insertOneList: insert_one.NewList(),
+		insertOneList: insert_one.NewOperations(),
 	}
 }
 
@@ -30,7 +30,7 @@ func (s *Service) InsertOne(
 	collection string,
 	document interface{},
 ) (*objects.RunningOperation, error) {
-	slog.Debug("mongodb-proxy: InsertOne: " + connection + " " + database + " " + collection)
+	slog.Info("InsertOne: " + connection + " " + database + " " + collection)
 
 	coll, err := s.connections.Collection(connection, database, collection)
 
@@ -45,8 +45,8 @@ func (s *Service) InsertOne(
 	return action.Start(s.ctx, document), nil
 }
 
-func (s *Service) InsertOneResult(actionUuid string) *insert_one.Operation {
-	return s.insertOneList.Get(actionUuid)
+func (s *Service) InsertOneResult(operationUuid string) *insert_one.Operation {
+	return s.insertOneList.Pull(operationUuid)
 }
 
 func (s *Service) Close() error {

@@ -1,6 +1,8 @@
 package rpc_proxy_mongodb
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type InsertOneArgs struct {
 	Connection string
@@ -10,12 +12,12 @@ type InsertOneArgs struct {
 }
 
 type InsertOneReply struct {
-	Error      string
-	ActionUuid string
+	Error         string
+	OperationUuid string
 }
 
 type InsertOneResultArgs struct {
-	ActionUuid string
+	OperationUuid string
 }
 
 type InsertOneResultReply struct {
@@ -39,6 +41,8 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 		return nil
 	}
 
+	document = processDateValues(document)
+
 	operation, err := p.service.InsertOne(
 		args.Connection,
 		args.Database,
@@ -49,27 +53,31 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 	if err != nil {
 		reply.Error = err.Error()
 	} else {
-		reply.ActionUuid = operation.Uuid
+		reply.OperationUuid = operation.Uuid
 	}
 
 	return nil
 }
 
 func (p *ProxyMongodbServer) InsertOneResult(args *InsertOneResultArgs, reply *InsertOneResultReply) error {
-	operation := p.service.InsertOneResult(args.ActionUuid)
+	operation := p.service.InsertOneResult(args.OperationUuid)
 
-	if !operation.IsFinished() {
+	if operation == nil {
 		reply.IsFinished = false
 	} else {
-		reply.IsFinished = true
-
-		result, resultError := operation.Result()
-
-		if resultError != nil {
-			reply.Error = resultError.Error()
+		if !operation.IsFinished() {
+			reply.IsFinished = false
 		} else {
-			reply.Result = InsertOneResult{
-				InsertedID: result.InsertedID,
+			reply.IsFinished = true
+
+			result, resultError := operation.Result()
+
+			if resultError != nil {
+				reply.Error = resultError.Error()
+			} else {
+				reply.Result = InsertOneResult{
+					InsertedID: result.InsertedID,
+				}
 			}
 		}
 	}
