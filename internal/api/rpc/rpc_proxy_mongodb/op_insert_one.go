@@ -1,10 +1,12 @@
 package rpc_proxy_mongodb
 
+import "encoding/json"
+
 type InsertOneArgs struct {
 	Connection string
 	Database   string
 	Collection string
-	Document   interface{}
+	Document   string
 }
 
 type InsertOneReply struct {
@@ -27,11 +29,21 @@ type InsertOneResult struct {
 }
 
 func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneReply) error {
+	var document interface{}
+
+	err := json.Unmarshal([]byte(args.Document), &document)
+
+	if err != nil {
+		reply.Error = err.Error()
+
+		return nil
+	}
+
 	operation, err := p.service.InsertOne(
 		args.Connection,
 		args.Database,
 		args.Collection,
-		args.Document,
+		document,
 	)
 
 	if err != nil {
