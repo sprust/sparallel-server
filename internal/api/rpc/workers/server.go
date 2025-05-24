@@ -1,11 +1,40 @@
-package sparallel
+package workers
 
 import (
+	"context"
+	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/sparallel_server"
 )
 
+var workers *Server
+
 type Server struct {
-	SparallelServer *sparallel_server.Server
+	service *sparallel_server.Service
+}
+
+func NewWorkersServer(ctx context.Context) *Server {
+	if workers != nil {
+		panic("the workers is already created")
+	}
+
+	cfg := config.GetConfig()
+
+	service := sparallel_server.NewService(
+		cfg.GetCommand(),
+		cfg.GetMinWorkersNumber(),
+		cfg.GetMaxWorkersNumber(),
+		cfg.GetWorkersNumberPercentScale(),
+		cfg.GetWorkersNumberScaleUp(),
+		cfg.GetWorkersNumberScaleDown(),
+	)
+
+	service.Start(ctx)
+
+	server := &Server{
+		service: service,
+	}
+
+	return server
 }
 
 type AddTaskArgs struct {
@@ -40,7 +69,7 @@ type CancelGroupResult struct {
 }
 
 func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
-	task := s.SparallelServer.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
+	task := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
 
 	reply.Uuid = task.TaskUuid
 
@@ -48,7 +77,7 @@ func (s *Server) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 }
 
 func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *DetectFinishedTaskResult) error {
-	response := s.SparallelServer.DetectAnyFinishedTask(args.GroupUuid)
+	response := s.service.DetectAnyFinishedTask(args.GroupUuid)
 
 	reply.GroupUuid = response.GroupUuid
 	reply.TaskUuid = response.TaskUuid
@@ -60,7 +89,7 @@ func (s *Server) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, reply *Dete
 }
 
 func (s *Server) CancelGroup(args *CancelGroupArgs, reply *CancelGroupResult) error {
-	s.SparallelServer.CancelGroup(args.GroupUuid)
+	s.service.CancelGroup(args.GroupUuid)
 
 	reply.GroupUuid = args.GroupUuid
 

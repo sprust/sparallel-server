@@ -7,8 +7,8 @@ import (
 	"net"
 	"net/rpc"
 	"sparallel_server/internal/api/rpc/ping_pong"
-	"sparallel_server/internal/api/rpc/sparallel"
-	"sparallel_server/internal/config"
+	"sparallel_server/internal/api/rpc/proxy_mongodb"
+	"sparallel_server/internal/api/rpc/workers"
 	"sparallel_server/internal/services/sparallel_server"
 	"sparallel_server/pkg/foundation/errs"
 )
@@ -16,7 +16,7 @@ import (
 type Server struct {
 	rpcPort         string
 	listener        net.Listener
-	sparallelServer *sparallel_server.Server
+	sparallelServer *sparallel_server.Service
 	closing         bool
 }
 
@@ -29,18 +29,6 @@ func NewServer(rpcPort string) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	cfg := config.GetConfig()
-
-	s.sparallelServer = sparallel_server.NewServer(
-		cfg.GetCommand(),
-		cfg.GetMinWorkersNumber(),
-		cfg.GetMaxWorkersNumber(),
-		cfg.GetWorkersNumberPercentScale(),
-		cfg.GetWorkersNumberScaleUp(),
-		cfg.GetWorkersNumberScaleDown(),
-	)
-
-	s.sparallelServer.Start(ctx)
 
 	listener, err := net.Listen("tcp", ":"+s.rpcPort)
 
@@ -50,7 +38,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	s.listener = listener
 
-	for _, function := range s.getFunctions() {
+	for _, function := range s.getFunctions(ctx) {
 		err = rpc.Register(function)
 
 		if err != nil {
@@ -83,12 +71,11 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) getFunctions() []any {
+func (s *Server) getFunctions(ctx context.Context) []any {
 	return []any{
 		&ping_pong.PingPong{},
-		&sparallel.Server{
-			SparallelServer: s.sparallelServer,
-		},
+		workers.NewWorkersServer(ctx),
+		proxy_mongodb.NewMongodbProxyServer(ctx),
 	}
 }
 

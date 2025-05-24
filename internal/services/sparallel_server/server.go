@@ -14,9 +14,9 @@ import (
 	"time"
 )
 
-var server *Server
+var service *Service
 
-type Server struct {
+type Service struct {
 	command                   string
 	minWorkersNumber          int
 	maxWorkersNumber          int
@@ -33,21 +33,21 @@ type Server struct {
 	tickersCtxCancel context.CancelFunc
 }
 
-func NewServer(
+func NewService(
 	command string,
 	minWorkersNumber int,
 	maxWorkersNumber int,
 	workersNumberPercentScale int,
 	workersNumberScaleUp int,
 	workersNumberScaleDown int,
-) *Server {
-	if server != nil {
-		panic("Sparallel server is already created")
+) *Service {
+	if service != nil {
+		panic("service is already created")
 	}
 
-	slog.Info("Creating sparallel server for [" + command + "] command...")
+	slog.Info("Creating sparallel service for [" + command + "] command...")
 
-	server = &Server{
+	service = &Service{
 		command:                   command,
 		minWorkersNumber:          minWorkersNumber,
 		maxWorkersNumber:          maxWorkersNumber,
@@ -59,16 +59,16 @@ func NewServer(
 		tasks:   tasks.NewTasks(),
 	}
 
-	return server
+	return service
 }
 
-func (s *Server) Start(ctx context.Context) {
-	slog.Info("Starting sparallel server...")
+func (s *Service) Start(ctx context.Context) {
+	slog.Info("Starting sparallel service...")
 
 	s.tickersCtx, s.tickersCtxCancel = context.WithCancel(ctx)
 
-	tickers := []func(ctx context.Context, s *Server){
-		func(ctx context.Context, s *Server) {
+	tickers := []func(ctx context.Context, s *Service){
+		func(ctx context.Context, s *Service) {
 			err := s.tickControlWorkers(ctx)
 
 			if err != nil {
@@ -77,15 +77,15 @@ func (s *Server) Start(ctx context.Context) {
 
 			time.Sleep(1 * time.Second)
 		},
-		func(ctx context.Context, s *Server) {
+		func(ctx context.Context, s *Service) {
 			s.tickClearFinishedTasks()
 
 			time.Sleep(5 * time.Second)
 		},
-		func(ctx context.Context, s *Server) {
+		func(ctx context.Context, s *Service) {
 			s.tickHandleTasks(ctx)
 		},
-		func(ctx context.Context, s *Server) {
+		func(ctx context.Context, s *Service) {
 			time.Sleep(1 * time.Second)
 
 			var mem runtime.MemStats
@@ -129,7 +129,7 @@ func (s *Server) Start(ctx context.Context) {
 	}
 
 	for _, ticker := range tickers {
-		go func(ctx context.Context, ticker func(ctx context.Context, s *Server)) {
+		go func(ctx context.Context, ticker func(ctx context.Context, s *Service)) {
 			for !s.closing.Load() {
 				ticker(ctx, s)
 			}
@@ -137,7 +137,7 @@ func (s *Server) Start(ctx context.Context) {
 	}
 }
 
-func (s *Server) AddTask(groupUuid string, taskUuid string, unixTimeout int, payload string) *tasks.Task {
+func (s *Service) AddTask(groupUuid string, taskUuid string, unixTimeout int, payload string) *tasks.Task {
 	slog.Debug("Adding task [" + taskUuid + "] to group [" + groupUuid + "]")
 
 	newTask := &tasks.Task{
@@ -152,7 +152,7 @@ func (s *Server) AddTask(groupUuid string, taskUuid string, unixTimeout int, pay
 	return newTask
 }
 
-func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
+func (s *Service) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
 	finishedTask := s.tasks.TakeFinished(groupUuid)
 
 	if finishedTask == nil {
@@ -166,7 +166,7 @@ func (s *Server) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
 }
 
 // CancelGroup TODO: test
-func (s *Server) CancelGroup(groupUuid string) {
+func (s *Service) CancelGroup(groupUuid string) {
 	s.tasks.DeleteGroup(groupUuid)
 
 	deletedProcesses := s.workers.DeleteByGroup(groupUuid)
@@ -178,19 +178,19 @@ func (s *Server) CancelGroup(groupUuid string) {
 	}
 }
 
-func (s *Server) Close() error {
+func (s *Service) Close() error {
 	s.closing.Store(true)
 
 	s.tickersCtxCancel()
 
-	slog.Warn("Closing sparallel server...")
+	slog.Warn("Closing sparallel service...")
 
 	_ = s.workers.Close()
 
 	return nil
 }
 
-func (s *Server) tickControlWorkers(ctx context.Context) error {
+func (s *Service) tickControlWorkers(ctx context.Context) error {
 	needWorkersNumber := s.minWorkersNumber
 
 	for s.workers.Count() < needWorkersNumber {
@@ -216,11 +216,11 @@ func (s *Server) tickControlWorkers(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) tickClearFinishedTasks() {
+func (s *Service) tickClearFinishedTasks() {
 	s.tasks.FlushRottenTasks()
 }
 
-func (s *Server) tickHandleTasks(ctx context.Context) {
+func (s *Service) tickHandleTasks(ctx context.Context) {
 	if s.workers.FreeCount() == 0 {
 		return
 	}
@@ -236,7 +236,7 @@ func (s *Server) tickHandleTasks(ctx context.Context) {
 	}(ctx, task)
 }
 
-func (s *Server) handleTask(task *tasks.Task) {
+func (s *Service) handleTask(task *tasks.Task) {
 	slog.Debug("Handling task [" + task.TaskUuid + "]")
 
 	worker := s.workers.Take(task)
