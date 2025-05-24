@@ -22,7 +22,11 @@ func processDateValues(data interface{}) interface{} {
 		return v
 	case []interface{}:
 		for i, value := range v {
-			if mapValue, ok := value.(map[string]interface{}); ok {
+			if strValue, ok := value.(string); ok {
+				if t, err := time.Parse(time.RFC3339, strValue); err == nil {
+					v[i] = primitive.NewDateTimeFromTime(t)
+				}
+			} else if mapValue, ok := value.(map[string]interface{}); ok {
 				v[i] = processDateValues(mapValue)
 			} else if sliceValue, ok := value.([]interface{}); ok {
 				v[i] = processDateValues(sliceValue)
