@@ -30,7 +30,9 @@ func (l *Operations) Pull(uuid string) *Operation {
 		return nil
 	}
 
-	delete(l.items, uuid)
+	if operation.IsFinished() {
+		delete(l.items, uuid)
+	}
 
 	return operation
 }

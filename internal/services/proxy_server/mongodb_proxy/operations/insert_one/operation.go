@@ -20,6 +20,7 @@ type Operation struct {
 func New(collection *mongo.Collection) *Operation {
 	return &Operation{
 		collection: collection,
+		uuid:       uuid.New().String(),
 		isFinished: false,
 	}
 }
@@ -33,8 +34,6 @@ func (a *Operation) Uuid() string {
 }
 
 func (a *Operation) Start(ctx context.Context, document interface{}) *objects.RunningOperation {
-	a.uuid = uuid.New().String()
-
 	go a.execute(ctx, document)
 
 	return &objects.RunningOperation{Uuid: a.uuid}

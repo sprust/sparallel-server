@@ -30,8 +30,6 @@ func (s *Service) InsertOne(
 	collection string,
 	document interface{},
 ) (*objects.RunningOperation, error) {
-	slog.Info("InsertOne: " + connection + " " + database + " " + collection)
-
 	coll, err := s.connections.Collection(connection, database, collection)
 
 	if err != nil {
