@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+var lenOfHeaderLen = 20
+
 type Process struct {
 	Uuid   string
 	Cmd    *exec.Cmd
@@ -101,37 +103,76 @@ func (p *Process) IsRunning() bool {
 func (p *Process) Write(data string) error {
 	slog.Debug("Write data with len [" + fmt.Sprint(len(data)) + "] to process: [" + p.Uuid + "]")
 
-	_, err := p.Stdin.Write([]byte(data))
+	dataLength := fmt.Sprintf("%0*d", lenOfHeaderLen, len(data))
+
+	_, err := p.Stdin.Write([]byte(dataLength + data))
 
 	return errs.Err(err)
 }
 
 func (p *Process) Read() *Response {
-	// TODO: stream read
-	buffer := make([]byte, 64*1024)
-	n, err := p.Stdout.Read(buffer)
+	headerBytes := make([]byte, lenOfHeaderLen)
+
+	_, err := io.ReadFull(p.Stdout, headerBytes)
 
 	if err != nil {
-		if err == io.EOF {
-			return nil
+		return &Response{
+			Error: errs.Err(err),
 		}
-
-		if p.Cmd.ProcessState != nil && p.Cmd.ProcessState.Exited() {
-			return &Response{Error: errors.New("worker down: " + p.Cmd.ProcessState.String())}
-		}
-
-		return &Response{Error: errs.Err(err)}
 	}
 
-	if n > 0 {
-		return &Response{Data: string(buffer[:n])}
+	dataLen := 0
+
+	lengthHeader := string(headerBytes)
+
+	_, err = fmt.Sscanf(lengthHeader, "%d", &dataLen)
+
+	if err != nil {
+		return &Response{
+			Error: errors.New(lengthHeader + p.readOutput()),
+		}
 	}
 
-	return nil
+	dataBytes := make([]byte, dataLen)
+
+	_, err = io.ReadFull(p.Stdout, dataBytes)
+
+	if err != nil {
+		return &Response{
+			Error: errs.Err(err),
+		}
+	}
+
+	return &Response{
+		Data: string(dataBytes),
+	}
 }
 
 func (p *Process) Close() error {
 	err := p.Cmd.Process.Kill()
 
 	return errs.Err(err)
+}
+
+func (p *Process) readOutput() string {
+	buffer := make([]byte, 1024)
+	n, err := p.Stdout.Read(buffer)
+
+	if err != nil {
+		if err == io.EOF {
+			return ""
+		}
+
+		if p.Cmd.ProcessState != nil && p.Cmd.ProcessState.Exited() {
+			return "worker down: " + p.Cmd.ProcessState.String()
+		}
+
+		return err.Error()
+	}
+
+	if n > 0 {
+		return string(buffer[:n])
+	}
+
+	return ""
 }
