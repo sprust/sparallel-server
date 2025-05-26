@@ -1,0 +1,26 @@
+package mongodb_proxy
+
+import (
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/objects"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
+)
+
+func (s *Service) UpdateOne(
+	connection string,
+	database string,
+	collection string,
+	filter interface{},
+	update interface{},
+) *objects.RunningOperation {
+	return s.updateOneList.Add(
+		s.ctx,
+		connection,
+		database,
+		collection,
+		update_one.New(filter, update),
+	)
+}
+
+func (s *Service) UpdateOneResult(operationUuid string) *update_one.Operation {
+	return s.updateOneList.Pull(operationUuid).(*update_one.Operation)
+}

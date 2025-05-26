@@ -1,6 +1,7 @@
 package rpc_proxy_mongodb
 
 import (
+	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -39,6 +40,18 @@ func processDateValues(data interface{}) interface{} {
 	default:
 		return v
 	}
+}
+
+func unmarshalJson(data string) (interface{}, error) {
+	var document interface{}
+
+	err := json.Unmarshal([]byte(data), &document)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return processDateValues(document), nil
 }
 
 // TODO: check

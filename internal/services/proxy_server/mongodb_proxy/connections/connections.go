@@ -21,7 +21,7 @@ func NewConnections(ctx context.Context) *Connections {
 	}
 }
 
-func (c *Connections) Collection(connName string, dbName string, collName string) (*mongo.Collection, error) {
+func (c *Connections) Get(connName string, dbName string, collName string) (*mongo.Collection, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

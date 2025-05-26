@@ -4,47 +4,29 @@ import (
 	"context"
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/connections"
-	"sparallel_server/internal/services/proxy_server/mongodb_proxy/objects"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/insert_one"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
 )
 
 type Service struct {
 	ctx           context.Context
 	connections   *connections.Connections
-	insertOneList *insert_one.Operations
+	insertOneList *operations.Operations[*insert_one.Operation]
+	updateOneList *operations.Operations[*update_one.Operation]
 }
 
 func NewService(ctx context.Context) *Service {
 	slog.Info("Starting mongodb-proxy service...")
 
+	connFactory := connections.NewConnections(ctx)
+
 	return &Service{
 		ctx:           ctx,
-		connections:   connections.NewConnections(ctx),
-		insertOneList: insert_one.NewOperations(),
+		connections:   connFactory,
+		insertOneList: operations.NewOperations[*insert_one.Operation](connFactory),
+		updateOneList: operations.NewOperations[*update_one.Operation](connFactory),
 	}
-}
-
-func (s *Service) InsertOne(
-	connection string,
-	database string,
-	collection string,
-	document interface{},
-) (*objects.RunningOperation, error) {
-	coll, err := s.connections.Collection(connection, database, collection)
-
-	if err != nil {
-		return nil, err
-	}
-
-	action := insert_one.New(coll)
-
-	s.insertOneList.Add(action)
-
-	return action.Start(s.ctx, document), nil
-}
-
-func (s *Service) InsertOneResult(operationUuid string) *insert_one.Operation {
-	return s.insertOneList.Pull(operationUuid)
 }
 
 func (s *Service) Close() error {

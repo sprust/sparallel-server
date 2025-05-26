@@ -1,4 +1,4 @@
-package insert_one
+package update_one
 
 import (
 	"context"
@@ -6,15 +6,17 @@ import (
 )
 
 type Operation struct {
-	document    interface{}
+	filter      interface{}
+	update      interface{}
 	isFinished  bool
-	result      *mongo.InsertOneResult
+	result      *mongo.UpdateResult
 	resultError error
 }
 
-func New(document interface{}) *Operation {
+func New(filter interface{}, update interface{}) *Operation {
 	return &Operation{
-		document:   document,
+		filter:     filter,
+		update:     update,
 		isFinished: false,
 	}
 }
@@ -29,11 +31,11 @@ func (o *Operation) Error(err error) {
 }
 
 func (o *Operation) Execute(ctx context.Context, coll *mongo.Collection) {
-	o.result, o.resultError = coll.InsertOne(ctx, o.document)
+	o.result, o.resultError = coll.UpdateOne(ctx, o.filter, o.update)
 
 	o.isFinished = true
 }
 
-func (o *Operation) Result() (*mongo.InsertOneResult, error) {
+func (o *Operation) Result() (*mongo.UpdateResult, error) {
 	return o.result, o.resultError
 }

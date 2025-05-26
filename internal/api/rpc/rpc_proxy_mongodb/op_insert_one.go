@@ -1,9 +1,5 @@
 package rpc_proxy_mongodb
 
-import (
-	"encoding/json"
-)
-
 type InsertOneArgs struct {
 	Connection string
 	Database   string
@@ -31,9 +27,7 @@ type InsertOneResult struct {
 }
 
 func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneReply) error {
-	var document interface{}
-
-	err := json.Unmarshal([]byte(args.Document), &document)
+	document, err := unmarshalJson(args.Document)
 
 	if err != nil {
 		reply.Error = err.Error()
@@ -41,20 +35,14 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 		return nil
 	}
 
-	document = processDateValues(document)
-
-	operation, err := p.service.InsertOne(
+	runningOperation := p.service.InsertOne(
 		args.Connection,
 		args.Database,
 		args.Collection,
 		document,
 	)
 
-	if err != nil {
-		reply.Error = err.Error()
-	} else {
-		reply.OperationUuid = operation.Uuid
-	}
+	reply.OperationUuid = runningOperation.Uuid
 
 	return nil
 }
