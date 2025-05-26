@@ -11,7 +11,9 @@ import (
 	"sparallel_server/internal/api/rpc/rpc_ping_pong"
 	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
 	"sparallel_server/internal/api/rpc/rpc_workers"
+	"sparallel_server/internal/services/stats_service"
 	"sparallel_server/pkg/foundation/errs"
+	"time"
 )
 
 type Server struct {
@@ -30,6 +32,16 @@ func NewServer(rpcPort string) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
+	statsService := stats_service.NewService()
+
+	go func(_ context.Context, statsService *stats_service.Service) {
+		for {
+			time.Sleep(1 * time.Second)
+
+			statsService.Save()
+		}
+	}(ctx, statsService)
+
 	listener, err := net.Listen("tcp", ":"+s.rpcPort)
 
 	if err != nil {

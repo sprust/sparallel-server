@@ -2,10 +2,8 @@ package workers_server
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os/exec"
-	"runtime"
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/internal/services/workers_server/workers"
@@ -64,6 +62,10 @@ func NewService(
 	return service
 }
 
+func GetService() *Service {
+	return service
+}
+
 func (s *Service) Start(ctx context.Context) {
 	slog.Info("Starting workers service...")
 
@@ -86,47 +88,6 @@ func (s *Service) Start(ctx context.Context) {
 		},
 		func(ctx context.Context, s *Service) {
 			s.tickHandleTasks(ctx)
-		},
-		func(ctx context.Context, s *Service) {
-			time.Sleep(1 * time.Second)
-
-			var mem runtime.MemStats
-
-			stats := SystemStats{
-				NumGoroutine:  uint64(runtime.NumGoroutine()),
-				AllocMiB:      float32(mem.Alloc / 1024 / 1024),
-				TotalAllocMiB: float32(mem.TotalAlloc / 1024 / 1024),
-				SysMiB:        float32(mem.Sys / 1024 / 1024),
-				NumGC:         uint64(mem.NumGC),
-			}
-
-			slog.Debug(
-				fmt.Sprintf(
-					"sys:\tgo=%d\tAlloc=%v_MiB\tTotAlloc=%v_MiB\tSys=%v_MiB\tNumGC=%v",
-					stats.NumGoroutine,
-					stats.AllocMiB,
-					stats.TotalAllocMiB,
-					stats.SysMiB,
-					stats.NumGC,
-				),
-			)
-
-			slog.Debug(
-				fmt.Sprintf(
-					"work:\ttot=%d\tfree=%v\tbusy=%v",
-					s.workers.Count(),
-					s.workers.FreeCount(),
-					s.workers.BusyCount(),
-				),
-			)
-
-			slog.Debug(
-				fmt.Sprintf(
-					"tasks:\twait=%d\tfin=%v",
-					s.tasks.WaitingCount(),
-					s.tasks.FinishedCount(),
-				),
-			)
 		},
 	}
 
@@ -167,7 +128,6 @@ func (s *Service) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
 	return finishedTask
 }
 
-// CancelGroup TODO: test
 func (s *Service) CancelGroup(groupUuid string) {
 	s.tasks.DeleteGroup(groupUuid)
 
@@ -177,6 +137,20 @@ func (s *Service) CancelGroup(groupUuid string) {
 		if deletedProcess != nil {
 			_ = deletedProcess.Close()
 		}
+	}
+}
+
+func (s *Service) Stats() WorkersServerStats {
+	return WorkersServerStats{
+		Workers: StatWorkers{
+			s.workers.Count(),
+			s.workers.FreeCount(),
+			s.workers.BusyCount(),
+		},
+		Tasks: StatTasks{
+			s.tasks.WaitingCount(),
+			s.tasks.FinishedCount(),
+		},
 	}
 }
 

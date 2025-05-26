@@ -1,9 +1,17 @@
 package workers_server
 
-type SystemStats struct {
-	NumGoroutine  uint64
-	AllocMiB      float32
-	TotalAllocMiB float32
-	SysMiB        float32
-	NumGC         uint64
+type WorkersServerStats struct {
+	Workers StatWorkers
+	Tasks   StatTasks
+}
+
+type StatWorkers struct {
+	Count     int
+	FreeCount int
+	BusyCount int
+}
+
+type StatTasks struct {
+	WaitingCount  int
+	FinishedCount int
 }
