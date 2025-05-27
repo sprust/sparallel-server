@@ -51,7 +51,7 @@ func (p *ProxyMongodbServer) InsertOneResult(args *InsertOneResultArgs, reply *I
 	operation := p.service.InsertOneResult(args.OperationUuid)
 
 	if operation == nil {
-		reply.IsFinished = true
+		reply.IsFinished = false
 		reply.Error = "unexisting operation"
 	} else {
 		reply.IsFinished = operation.IsFinished()

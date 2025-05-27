@@ -22,5 +22,11 @@ func (s *Service) UpdateOne(
 }
 
 func (s *Service) UpdateOneResult(operationUuid string) *update_one.Operation {
-	return s.updateOneList.Pull(operationUuid).(*update_one.Operation)
+	op := s.updateOneList.Pull(operationUuid)
+
+	if op == nil {
+		return nil
+	}
+
+	return op.(*update_one.Operation)
 }

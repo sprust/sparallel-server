@@ -22,10 +22,18 @@ func NewService(ctx context.Context) *Service {
 	connFactory := connections.NewConnections(ctx)
 
 	return &Service{
-		ctx:           ctx,
-		connections:   connFactory,
-		insertOneList: operations.NewOperations[*insert_one.Operation](connFactory),
-		updateOneList: operations.NewOperations[*update_one.Operation](connFactory),
+		ctx:         ctx,
+		connections: connFactory,
+		insertOneList: operations.NewOperations[*insert_one.Operation](
+			ctx,
+			"insert_one",
+			connFactory,
+		),
+		updateOneList: operations.NewOperations[*update_one.Operation](
+			ctx,
+			"update_one",
+			connFactory,
+		),
 	}
 }
 

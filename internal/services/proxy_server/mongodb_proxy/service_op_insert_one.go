@@ -21,5 +21,11 @@ func (s *Service) InsertOne(
 }
 
 func (s *Service) InsertOneResult(operationUuid string) *insert_one.Operation {
-	return s.insertOneList.Pull(operationUuid).(*insert_one.Operation)
+	op := s.insertOneList.Pull(operationUuid)
+
+	if op == nil {
+		return nil
+	}
+
+	return op.(*insert_one.Operation)
 }
