@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
 )
 
 var server *ProxyMongodbServer
@@ -11,6 +12,16 @@ var server *ProxyMongodbServer
 type ProxyMongodbServer struct {
 	ctx     context.Context
 	service *mongodb_proxy.Service
+}
+
+type ResultArgs struct {
+	OperationUuid string
+}
+
+type ResultReply struct {
+	IsFinished bool
+	Error      string
+	Result     string
 }
 
 func NewServer(ctx context.Context) *ProxyMongodbServer {
@@ -21,6 +32,31 @@ func NewServer(ctx context.Context) *ProxyMongodbServer {
 	return &ProxyMongodbServer{
 		ctx:     ctx,
 		service: mongodb_proxy.NewService(ctx),
+	}
+}
+
+func (p *ProxyMongodbServer) makeResult(operation operations.OperationInterface, reply *ResultReply) {
+	if operation == nil {
+		reply.IsFinished = false
+		reply.Error = "unexisting operation"
+	} else {
+		reply.IsFinished = operation.IsFinished()
+
+		if reply.IsFinished {
+			result, resultError := operation.Result()
+
+			if resultError != nil {
+				reply.Error = resultError.Error()
+			} else {
+				serialized, err := serializeForPHPMongoDB(result)
+
+				if err != nil {
+					reply.Error = err.Error()
+				} else {
+					reply.Result = serialized
+				}
+			}
+		}
 	}
 }
 

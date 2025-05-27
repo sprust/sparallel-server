@@ -34,6 +34,6 @@ func (o *Operation) Execute(ctx context.Context, coll *mongo.Collection) {
 	o.isFinished = true
 }
 
-func (o *Operation) Result() (*mongo.InsertOneResult, error) {
+func (o *Operation) Result() (interface{}, error) {
 	return o.result, o.resultError
 }

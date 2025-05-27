@@ -36,6 +36,6 @@ func (o *Operation) Execute(ctx context.Context, coll *mongo.Collection) {
 	o.isFinished = true
 }
 
-func (o *Operation) Result() (*mongo.UpdateResult, error) {
+func (o *Operation) Result() (interface{}, error) {
 	return o.result, o.resultError
 }

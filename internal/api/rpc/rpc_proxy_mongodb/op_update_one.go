@@ -17,19 +17,6 @@ type UpdateOneResultArgs struct {
 	OperationUuid string
 }
 
-type UpdateOneResultReply struct {
-	IsFinished bool
-	Error      string
-	Result     UpdateOneResult
-}
-
-type UpdateOneResult struct {
-	MatchedCount  int64
-	ModifiedCount int64
-	UpsertedCount int64
-	UpsertedID    interface{}
-}
-
 func (p *ProxyMongodbServer) UpdateOne(args *UpdateOneArgs, reply *UpdateOneReply) error {
 	filter, err := unmarshalJson(args.Filter)
 
@@ -60,30 +47,10 @@ func (p *ProxyMongodbServer) UpdateOne(args *UpdateOneArgs, reply *UpdateOneRepl
 	return nil
 }
 
-func (p *ProxyMongodbServer) UpdateOneResult(args *UpdateOneResultArgs, reply *UpdateOneResultReply) error {
+func (p *ProxyMongodbServer) UpdateOneResult(args *ResultArgs, reply *ResultReply) error {
 	operation := p.service.UpdateOneResult(args.OperationUuid)
 
-	if operation == nil {
-		reply.IsFinished = false
-		reply.Error = "unexisting operation"
-	} else {
-		reply.IsFinished = operation.IsFinished()
-
-		if reply.IsFinished {
-			result, resultError := operation.Result()
-
-			if resultError != nil {
-				reply.Error = resultError.Error()
-			} else {
-				reply.Result = UpdateOneResult{
-					MatchedCount:  result.MatchedCount,
-					ModifiedCount: result.ModifiedCount,
-					UpsertedCount: result.UpsertedCount,
-					UpsertedID:    result.UpsertedID,
-				}
-			}
-		}
-	}
+	p.makeResult(operation, reply)
 
 	return nil
 }

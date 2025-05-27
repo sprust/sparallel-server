@@ -12,20 +12,6 @@ type InsertOneReply struct {
 	OperationUuid string
 }
 
-type InsertOneResultArgs struct {
-	OperationUuid string
-}
-
-type InsertOneResultReply struct {
-	IsFinished bool
-	Error      string
-	Result     InsertOneResult
-}
-
-type InsertOneResult struct {
-	InsertedID interface{}
-}
-
 func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneReply) error {
 	document, err := unmarshalJson(args.Document)
 
@@ -47,27 +33,10 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 	return nil
 }
 
-func (p *ProxyMongodbServer) InsertOneResult(args *InsertOneResultArgs, reply *InsertOneResultReply) error {
+func (p *ProxyMongodbServer) InsertOneResult(args *ResultArgs, reply *ResultReply) error {
 	operation := p.service.InsertOneResult(args.OperationUuid)
 
-	if operation == nil {
-		reply.IsFinished = false
-		reply.Error = "unexisting operation"
-	} else {
-		reply.IsFinished = operation.IsFinished()
-
-		if reply.IsFinished {
-			result, resultError := operation.Result()
-
-			if resultError != nil {
-				reply.Error = resultError.Error()
-			} else {
-				reply.Result = InsertOneResult{
-					InsertedID: result.InsertedID,
-				}
-			}
-		}
-	}
+	p.makeResult(operation, reply)
 
 	return nil
 }

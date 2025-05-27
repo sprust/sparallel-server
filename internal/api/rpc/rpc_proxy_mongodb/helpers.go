@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"sparallel_server/pkg/foundation/errs"
 	"time"
 )
 
@@ -54,12 +55,11 @@ func unmarshalJson(data string) (interface{}, error) {
 	return processDateValues(document), nil
 }
 
-// TODO: check
 func serializeForPHPMongoDB(doc interface{}) (string, error) {
 	bsonData, err := bson.Marshal(doc)
 
 	if err != nil {
-		return "", fmt.Errorf("ошибка BSON маршалинга: %w", err)
+		return "", errs.Err(fmt.Errorf("error BSON marshaling: %w", err))
 	}
 
 	var raw bson.Raw = bsonData
@@ -67,7 +67,7 @@ func serializeForPHPMongoDB(doc interface{}) (string, error) {
 	jsonData, err := bson.MarshalExtJSON(raw, true, true)
 
 	if err != nil {
-		return "", fmt.Errorf("ошибка конвертации в Extended JSON: %w", err)
+		return "", errs.Err(fmt.Errorf("converting error in Extended Json: %w", err))
 	}
 
 	return string(jsonData), nil
