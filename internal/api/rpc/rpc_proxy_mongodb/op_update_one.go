@@ -1,11 +1,16 @@
 package rpc_proxy_mongodb
 
+import (
+	"log/slog"
+)
+
 type UpdateOneArgs struct {
 	Connection string
 	Database   string
 	Collection string
 	Filter     string
 	Update     string
+	OpUpsert   bool
 }
 
 type UpdateOneReply struct {
@@ -21,7 +26,11 @@ func (p *ProxyMongodbServer) UpdateOne(args *UpdateOneArgs, reply *UpdateOneRepl
 	filter, err := unmarshalJson(args.Filter)
 
 	if err != nil {
-		reply.Error = err.Error()
+		msg := "unmarshal [Filter] json error: " + err.Error()
+
+		reply.Error = msg
+
+		slog.Error("UpdateOne: " + msg)
 
 		return nil
 	}
@@ -29,7 +38,11 @@ func (p *ProxyMongodbServer) UpdateOne(args *UpdateOneArgs, reply *UpdateOneRepl
 	update, err := unmarshalJson(args.Update)
 
 	if err != nil {
-		reply.Error = err.Error()
+		msg := "unmarshal [Update] json error: " + err.Error()
+
+		reply.Error = msg
+
+		slog.Error("UpdateOne: " + msg)
 
 		return nil
 	}
@@ -40,7 +53,10 @@ func (p *ProxyMongodbServer) UpdateOne(args *UpdateOneArgs, reply *UpdateOneRepl
 		args.Collection,
 		filter,
 		update,
+		args.OpUpsert,
 	)
+
+	slog.Debug("UpdateOne[" + runningOperation.Uuid + "]: created")
 
 	reply.OperationUuid = runningOperation.Uuid
 

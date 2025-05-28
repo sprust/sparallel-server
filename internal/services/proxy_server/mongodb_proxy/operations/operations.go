@@ -67,9 +67,13 @@ func (o *Operations[T]) Add(
 		coll, err := o.connections.Get(connName, dbName, collName)
 
 		if err != nil {
+			slog.Error(o.name + "[" + opUuid + "]: failed to get collection: " + err.Error())
+
 			operation.Error(err)
 		} else {
 			operation.Execute(ctx, coll)
+
+			slog.Debug(o.name + "[" + opUuid + "]: executed")
 
 			o.finishOperation(opUuid, operation)
 		}
@@ -134,7 +138,7 @@ func (o *Operations[T]) deleteOperation(opUuid string, isTimeout bool) {
 	defer o.mutex.Unlock()
 
 	if isTimeout {
-		slog.Warn("Deleting operation of [" + o.name + "] by timeout: " + opUuid)
+		slog.Warn("Deleting operation [" + opUuid + "] of [" + o.name + "] by timeout")
 	}
 
 	delete(o.running, opUuid)

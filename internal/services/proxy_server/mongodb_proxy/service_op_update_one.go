@@ -11,13 +11,18 @@ func (s *Service) UpdateOne(
 	collection string,
 	filter interface{},
 	update interface{},
+	opUpsert bool,
 ) *objects.RunningOperation {
 	return s.updateOneList.Add(
 		s.ctx,
 		connection,
 		database,
 		collection,
-		update_one.New(filter, update),
+		update_one.New(
+			filter,
+			update,
+			opUpsert,
+		),
 	)
 }
 

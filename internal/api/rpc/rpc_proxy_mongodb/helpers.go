@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+const dateFormat = time.RFC3339
+
+const typeKey = "|t_"
+const valueKey = "|v_"
+
+const datetimeType = "datetime"
+const idType = "id"
+
 func processDateValues(data interface{}) interface{} {
 	if data == nil {
 		return nil
@@ -16,10 +24,19 @@ func processDateValues(data interface{}) interface{} {
 
 	switch v := data.(type) {
 	case map[string]interface{}:
-		if len(v) == 2 && v["|t_"] == "datetime" {
-			if timeStr, ok := v["|v_"].(string); ok {
-				if t, err := time.Parse(time.RFC3339, timeStr); err == nil {
+		if len(v) == 2 && v[typeKey] == datetimeType {
+			if timeStr, ok := v[valueKey].(string); ok {
+				if t, err := time.Parse(dateFormat, timeStr); err == nil {
 					return primitive.NewDateTimeFromTime(t)
+				}
+			}
+			return v
+		}
+
+		if len(v) == 2 && v[typeKey] == idType {
+			if idStr, ok := v[valueKey].(string); ok {
+				if objectID, err := primitive.ObjectIDFromHex(idStr); err == nil {
+					return objectID
 				}
 			}
 			return v

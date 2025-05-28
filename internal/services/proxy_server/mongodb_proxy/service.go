@@ -26,12 +26,12 @@ func NewService(ctx context.Context) *Service {
 		connections: connFactory,
 		insertOneList: operations.NewOperations[*insert_one.Operation](
 			ctx,
-			"insert_one",
+			"InsertOne",
 			connFactory,
 		),
 		updateOneList: operations.NewOperations[*update_one.Operation](
 			ctx,
-			"update_one",
+			"UpdateOne",
 			connFactory,
 		),
 	}

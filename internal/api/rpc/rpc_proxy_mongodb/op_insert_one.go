@@ -1,5 +1,7 @@
 package rpc_proxy_mongodb
 
+import "log/slog"
+
 type InsertOneArgs struct {
 	Connection string
 	Database   string
@@ -16,7 +18,11 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 	document, err := unmarshalJson(args.Document)
 
 	if err != nil {
-		reply.Error = err.Error()
+		msg := "unmarshal [Document] json error: " + err.Error()
+
+		slog.Error("InsertOne: " + msg)
+
+		reply.Error = msg
 
 		return nil
 	}
@@ -27,6 +33,8 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 		args.Collection,
 		document,
 	)
+
+	slog.Debug("InsertOne[" + runningOperation.Uuid + "]: created")
 
 	reply.OperationUuid = runningOperation.Uuid
 
