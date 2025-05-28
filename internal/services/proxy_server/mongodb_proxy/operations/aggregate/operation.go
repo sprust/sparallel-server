@@ -2,10 +2,13 @@ package aggregate
 
 import (
 	"context"
+	"fmt"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
 )
+
+const resultKey = "_result"
 
 type Operation struct {
 	pipeline    interface{}
@@ -53,7 +56,6 @@ func (o *Operation) HasNext() bool {
 
 func (o *Operation) Clone(ctx context.Context) operations.OperationInterface {
 	cloned := &Operation{
-		pipeline:   o.pipeline,
 		isFinished: false,
 		cursor:     o.cursor,
 	}
@@ -68,28 +70,32 @@ func (o *Operation) next(ctx context.Context) {
 		o.isFinished = true
 	}(o)
 
-	if !o.cursor.Next(ctx) {
-		slog.Debug("Aggregate 1")
+	counter := 20
 
-		o.result = nil
+	var items []interface{}
 
-		_ = o.cursor.Close(ctx)
+	for o.cursor.Next(ctx) && counter > 0 {
+		if err := o.cursor.Err(); err != nil {
+			o.result = nil
+			o.resultError = err
 
-		return
+			_ = o.cursor.Close(ctx)
+
+			break
+		}
+
+		items = append(items, o.cursor.Current)
+
+		counter -= 1
 	}
 
-	if err := o.cursor.Err(); err != nil {
-		slog.Debug("Aggregate 2")
+	fmt.Println(len(items))
 
-		o.result = nil
-		o.resultError = err
-
+	if len(items) == 0 {
 		_ = o.cursor.Close(ctx)
-
-		return
+	} else {
+		o.result = bson.D{
+			{Key: resultKey, Value: items},
+		}
 	}
-
-	slog.Debug("Aggregate 3")
-
-	o.result = o.cursor.Current
 }

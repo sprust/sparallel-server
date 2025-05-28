@@ -20,10 +20,6 @@ func (s *Service) Aggregate(
 	)
 }
 
-func (s *Service) AggregateNext() {
-
-}
-
 func (s *Service) AggregateResult(operationUuid string) (*aggregate.Operation, string) {
 	op, nextUuid := s.aggregateList.Pull(s.ctx, operationUuid)
 
