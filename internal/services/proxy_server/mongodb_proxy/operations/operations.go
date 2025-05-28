@@ -107,7 +107,7 @@ func (o *Operations[T]) CheckTimeouts() {
 	o.timeoutsMutex.Lock()
 	defer o.timeoutsMutex.Unlock()
 
-	slog.Debug("Checking timeouts for operations: " + o.name)
+	slog.Debug(o.name + ": checking timeouts for operations")
 
 	for opUuid, timeout := range o.timeouts {
 		if timeout.Before(time.Now()) {
