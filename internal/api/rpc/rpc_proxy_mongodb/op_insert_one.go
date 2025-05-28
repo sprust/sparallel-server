@@ -44,7 +44,7 @@ func (p *ProxyMongodbServer) InsertOne(args *InsertOneArgs, reply *InsertOneRepl
 func (p *ProxyMongodbServer) InsertOneResult(args *ResultArgs, reply *ResultReply) error {
 	operation := p.service.InsertOneResult(args.OperationUuid)
 
-	p.makeResult(operation, reply)
+	p.makeResult(operation, "", reply)
 
 	return nil
 }

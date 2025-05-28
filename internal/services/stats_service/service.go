@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var statsFilePath = "storage/logs/stats.log"
+var statsFilePath = "storage/logs/stats.json"
 
 var service *Service
 

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/connections"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/aggregate"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/insert_one"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
 )
@@ -14,6 +15,7 @@ type Service struct {
 	connections   *connections.Connections
 	insertOneList *operations.Operations[*insert_one.Operation]
 	updateOneList *operations.Operations[*update_one.Operation]
+	aggregateList *operations.Operations[*aggregate.Operation]
 }
 
 func NewService(ctx context.Context) *Service {
@@ -32,6 +34,11 @@ func NewService(ctx context.Context) *Service {
 		updateOneList: operations.NewOperations[*update_one.Operation](
 			ctx,
 			"UpdateOne",
+			connFactory,
+		),
+		aggregateList: operations.NewOperations[*aggregate.Operation](
+			ctx,
+			"Aggregate",
 			connFactory,
 		),
 	}

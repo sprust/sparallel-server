@@ -27,7 +27,7 @@ func (s *Service) UpdateOne(
 }
 
 func (s *Service) UpdateOneResult(operationUuid string) *update_one.Operation {
-	op := s.updateOneList.Pull(operationUuid)
+	op, _ := s.updateOneList.Pull(s.ctx, operationUuid)
 
 	if op == nil {
 		return nil

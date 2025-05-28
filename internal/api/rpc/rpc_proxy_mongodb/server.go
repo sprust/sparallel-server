@@ -2,6 +2,7 @@ package rpc_proxy_mongodb
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/bson"
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
@@ -22,6 +23,7 @@ type ResultReply struct {
 	IsFinished bool
 	Error      string
 	Result     string
+	NextUuid   string
 }
 
 func NewServer(ctx context.Context) *ProxyMongodbServer {
@@ -35,7 +37,11 @@ func NewServer(ctx context.Context) *ProxyMongodbServer {
 	}
 }
 
-func (p *ProxyMongodbServer) makeResult(operation operations.OperationInterface, reply *ResultReply) {
+func (p *ProxyMongodbServer) makeResult(
+	operation operations.OperationInterface,
+	nextUuid string,
+	reply *ResultReply,
+) {
 	if operation == nil {
 		reply.IsFinished = false
 		reply.Error = "unexisting operation"
@@ -48,12 +54,17 @@ func (p *ProxyMongodbServer) makeResult(operation operations.OperationInterface,
 			if resultError != nil {
 				reply.Error = resultError.Error()
 			} else {
+				if result == nil {
+					result = bson.D{}
+				}
+
 				serialized, err := serializeForPHPMongoDB(result)
 
 				if err != nil {
 					reply.Error = err.Error()
 				} else {
 					reply.Result = serialized
+					reply.NextUuid = nextUuid
 				}
 			}
 		}

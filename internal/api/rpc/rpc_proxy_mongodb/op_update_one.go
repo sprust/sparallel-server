@@ -66,7 +66,7 @@ func (p *ProxyMongodbServer) UpdateOne(args *UpdateOneArgs, reply *UpdateOneRepl
 func (p *ProxyMongodbServer) UpdateOneResult(args *ResultArgs, reply *ResultReply) error {
 	operation := p.service.UpdateOneResult(args.OperationUuid)
 
-	p.makeResult(operation, reply)
+	p.makeResult(operation, "", reply)
 
 	return nil
 }

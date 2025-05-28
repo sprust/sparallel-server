@@ -75,32 +75,42 @@ func (o *Operations[T]) Add(
 
 			slog.Debug(o.name + "[" + opUuid + "]: executed")
 
-			o.finishOperation(opUuid, operation)
+			if operation.IsFinished() {
+				o.finishOperation(opUuid, operation)
+			}
 		}
 	}(ctx)
 
 	return &objects.RunningOperation{Uuid: opUuid}
 }
 
-func (o *Operations[T]) Pull(uuid string) OperationInterface {
+func (o *Operations[T]) Pull(ctx context.Context, uuid string) (OperationInterface, string) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
 	operation, exists := o.running[uuid]
 
 	if exists {
-		return operation
+		return operation, ""
 	}
 
 	operation, exists = o.finished[uuid]
 
 	if exists {
-		go o.deleteOperation(uuid, false)
+		if operation.HasNext() {
+			o.running[uuid] = operation.Clone(ctx).(T)
 
-		return operation
+			slog.Debug(o.name + ": cloned")
+
+			return operation, uuid
+		} else {
+			go o.deleteOperation(uuid, false)
+
+			return operation, ""
+		}
 	}
 
-	return nil
+	return nil, ""
 }
 
 func (o *Operations[T]) CheckTimeouts() {
