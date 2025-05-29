@@ -2,7 +2,6 @@ package aggregate
 
 import (
 	"context"
-	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
@@ -60,7 +59,7 @@ func (o *Operation) Clone(ctx context.Context) operations.OperationInterface {
 		cursor:     o.cursor,
 	}
 
-	go cloned.next(ctx)
+	cloned.next(ctx)
 
 	return cloned
 }
@@ -88,8 +87,6 @@ func (o *Operation) next(ctx context.Context) {
 
 		counter -= 1
 	}
-
-	fmt.Println(len(items))
 
 	if len(items) == 0 {
 		_ = o.cursor.Close(ctx)

@@ -97,17 +97,26 @@ func (o *Operations[T]) Pull(ctx context.Context, uuid string) (OperationInterfa
 	operation, exists = o.finished[uuid]
 
 	if exists {
+		nextUuid := ""
+
 		if operation.HasNext() {
-			o.running[uuid] = operation.Clone(ctx).(T)
+			nextUuid = uuid
 
-			slog.Debug(o.name + ": cloned")
+			go func() {
+				cloned := operation.Clone(ctx).(T)
 
-			return operation, uuid
+				slog.Debug(o.name + ": cloned")
+
+				o.mutex.Lock()
+				defer o.mutex.Unlock()
+
+				o.finished[uuid] = cloned
+			}()
 		} else {
 			go o.deleteOperation(uuid, false)
-
-			return operation, ""
 		}
+
+		return operation, nextUuid
 	}
 
 	return nil, ""
