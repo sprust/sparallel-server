@@ -1,7 +1,7 @@
 package mongodb_proxy
 
 import (
-	"sparallel_server/internal/services/proxy_server/mongodb_proxy/objects"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/aggregate"
 )
 
@@ -10,7 +10,7 @@ func (s *Service) Aggregate(
 	database string,
 	collection string,
 	pipeline interface{},
-) *objects.RunningOperation {
+) *mongodb_proxy_objects.RunningOperation {
 	return s.aggregateList.Add(
 		s.ctx,
 		connection,

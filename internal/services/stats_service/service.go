@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"runtime"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/workers_server"
 	"time"
 )
@@ -27,9 +29,10 @@ type Service struct {
 }
 
 type CombinedStats struct {
-	DateTime time.Time                          `json:"dateTime"`
-	System   SystemStats                        `json:"system"`
-	Workers  *workers_server.WorkersServerStats `json:"workers,omitempty"`
+	DateTime     time.Time                           `json:"dateTime"`
+	System       SystemStats                         `json:"system"`
+	Workers      *workers_server.WorkersServerStats  `json:"workers,omitempty"`
+	MongodbProxy *mongodb_proxy_objects.ServiceStats `json:"mongodb_proxy,omitempty"`
 }
 
 func NewService() *Service {
@@ -61,12 +64,20 @@ func (s *Service) Save() {
 
 	combined.System = sysStats
 
-	workersServer := workers_server.GetService()
+	workersService := workers_server.GetService()
 
-	if workersServer != nil {
-		workersServerStats := workersServer.Stats()
+	if workersService != nil {
+		workersServiceStats := workersService.Stats()
 
-		combined.Workers = &workersServerStats
+		combined.Workers = &workersServiceStats
+	}
+
+	mongodbProxyService := mongodb_proxy.GetService()
+
+	if mongodbProxyService != nil {
+		mongodbProxyServiceStats := mongodbProxyService.Stats()
+
+		combined.MongodbProxy = &mongodbProxyServiceStats
 	}
 
 	jsonData, err := json.Marshal(combined)

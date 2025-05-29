@@ -5,7 +5,7 @@ import (
 	"github.com/google/uuid"
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/connections"
-	"sparallel_server/internal/services/proxy_server/mongodb_proxy/objects"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sync"
 	"time"
 )
@@ -58,7 +58,7 @@ func (o *Operations[T]) Add(
 	dbName string,
 	collName string,
 	operation T,
-) *objects.RunningOperation {
+) *mongodb_proxy_objects.RunningOperation {
 	opUuid := uuid.New().String()
 
 	go func(ctx context.Context) {
@@ -81,7 +81,7 @@ func (o *Operations[T]) Add(
 		}
 	}(ctx)
 
-	return &objects.RunningOperation{Uuid: opUuid}
+	return &mongodb_proxy_objects.RunningOperation{Uuid: opUuid}
 }
 
 func (o *Operations[T]) Pull(ctx context.Context, uuid string) (OperationInterface, string) {
@@ -132,6 +132,17 @@ func (o *Operations[T]) CheckTimeouts() {
 		if timeout.Before(time.Now()) {
 			go o.deleteOperation(opUuid, true)
 		}
+	}
+}
+
+func (o *Operations[T]) Stats() mongodb_proxy_objects.OperationsStats {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	return mongodb_proxy_objects.OperationsStats{
+		Running:  len(o.running),
+		Finished: len(o.finished),
+		Timeouts: len(o.timeouts),
 	}
 }
 

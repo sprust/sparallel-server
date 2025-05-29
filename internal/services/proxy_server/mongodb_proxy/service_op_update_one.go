@@ -1,7 +1,7 @@
 package mongodb_proxy
 
 import (
-	"sparallel_server/internal/services/proxy_server/mongodb_proxy/objects"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
 )
 
@@ -12,7 +12,7 @@ func (s *Service) UpdateOne(
 	filter interface{},
 	update interface{},
 	opUpsert bool,
-) *objects.RunningOperation {
+) *mongodb_proxy_objects.RunningOperation {
 	return s.updateOneList.Add(
 		s.ctx,
 		connection,

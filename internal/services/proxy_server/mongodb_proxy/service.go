@@ -4,11 +4,14 @@ import (
 	"context"
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/connections"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/aggregate"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/insert_one"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
 )
+
+var service *Service
 
 type Service struct {
 	ctx           context.Context
@@ -21,9 +24,13 @@ type Service struct {
 func NewService(ctx context.Context) *Service {
 	slog.Info("Starting mongodb-proxy service...")
 
+	if service != nil {
+		panic("mongodb-proxy service is already created")
+	}
+
 	connFactory := connections.NewConnections(ctx)
 
-	return &Service{
+	service = &Service{
 		ctx:         ctx,
 		connections: connFactory,
 		insertOneList: operations.NewOperations[*insert_one.Operation](
@@ -41,6 +48,20 @@ func NewService(ctx context.Context) *Service {
 			"Aggregate",
 			connFactory,
 		),
+	}
+
+	return service
+}
+
+func GetService() *Service {
+	return service
+}
+
+func (s *Service) Stats() mongodb_proxy_objects.ServiceStats {
+	return mongodb_proxy_objects.ServiceStats{
+		InsertOne: s.insertOneList.Stats(),
+		UpdateOne: s.updateOneList.Stats(),
+		Aggregate: s.aggregateList.Stats(),
 	}
 }
 

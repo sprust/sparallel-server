@@ -20,12 +20,14 @@ type Server struct {
 	rpcPort  string
 	listener net.Listener
 	servers  []io.Closer
+	ticker   *time.Ticker
 	closing  bool
 }
 
 func NewServer(rpcPort string) *Server {
 	server := &Server{
 		rpcPort: rpcPort,
+		ticker:  time.NewTicker(1 * time.Second),
 	}
 
 	return server
@@ -35,10 +37,15 @@ func (s *Server) Run(ctx context.Context) error {
 	statsService := stats_service.NewService()
 
 	go func(_ context.Context, statsService *stats_service.Service) {
-		for {
-			time.Sleep(1 * time.Second)
+		defer s.ticker.Stop()
 
-			statsService.Save()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-s.ticker.C:
+				statsService.Save()
+			}
 		}
 	}(ctx, statsService)
 
