@@ -21,11 +21,11 @@ func (s *Service) Aggregate(
 }
 
 func (s *Service) AggregateResult(operationUuid string) (*aggregate.Operation, string) {
-	op, nextUuid := s.aggregateList.Pull(s.ctx, operationUuid)
+	op, nextOpUuid := s.aggregateList.Pull(s.ctx, operationUuid)
 
 	if op == nil {
 		return nil, ""
 	}
 
-	return op.(*aggregate.Operation), nextUuid
+	return op.(*aggregate.Operation), nextOpUuid
 }

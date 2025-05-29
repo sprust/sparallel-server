@@ -42,9 +42,9 @@ func (p *ProxyMongodbServer) Aggregate(args *AggregateArgs, reply *AggregateRepl
 }
 
 func (p *ProxyMongodbServer) AggregateResult(args *ResultArgs, reply *ResultReply) error {
-	operation, nextUuid := p.service.AggregateResult(args.OperationUuid)
+	operation, nextOpUuid := p.service.AggregateResult(args.OperationUuid)
 
-	p.makeResult(operation, nextUuid, reply)
+	p.makeResult(operation, nextOpUuid, reply)
 
 	return nil
 }

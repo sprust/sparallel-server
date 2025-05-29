@@ -39,7 +39,7 @@ func NewServer(ctx context.Context) *ProxyMongodbServer {
 
 func (p *ProxyMongodbServer) makeResult(
 	operation operations.OperationInterface,
-	nextUuid string,
+	nextOpUuid string,
 	reply *ResultReply,
 ) {
 	if operation == nil {
@@ -64,7 +64,7 @@ func (p *ProxyMongodbServer) makeResult(
 					reply.Error = err.Error()
 				} else {
 					reply.Result = serialized
-					reply.NextUuid = nextUuid
+					reply.NextUuid = nextOpUuid
 				}
 			}
 		}

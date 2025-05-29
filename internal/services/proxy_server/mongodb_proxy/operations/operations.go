@@ -84,40 +84,43 @@ func (o *Operations[T]) Add(
 	return &mongodb_proxy_objects.RunningOperation{Uuid: opUuid}
 }
 
-func (o *Operations[T]) Pull(ctx context.Context, uuid string) (OperationInterface, string) {
+func (o *Operations[T]) Pull(ctx context.Context, opUuid string) (OperationInterface, string) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	operation, exists := o.running[uuid]
+	operation, exists := o.running[opUuid]
 
 	if exists {
 		return operation, ""
 	}
 
-	operation, exists = o.finished[uuid]
+	operation, exists = o.finished[opUuid]
 
 	if exists {
-		nextUuid := ""
+		nextOpUuid := ""
 
 		if operation.HasNext() {
-			nextUuid = uuid
+			nextOpUuid = uuid.New().String()
 
 			go func() {
+				slog.Debug(o.name + "[" + opUuid + "]: cloning as [" + nextOpUuid + "]")
+
 				cloned := operation.Clone(ctx).(T)
 
-				slog.Debug(o.name + ": cloned")
+				o.finishOperation(nextOpUuid, cloned)
 
-				o.mutex.Lock()
-				defer o.mutex.Unlock()
-
-				o.finished[uuid] = cloned
+				slog.Debug(o.name + "[" + nextOpUuid + "]: executed [cloned from [" + opUuid + "]")
 			}()
-		} else {
-			go o.deleteOperation(uuid, false)
 		}
 
-		return operation, nextUuid
+		go o.deleteOperation(opUuid, false)
+
+		slog.Debug(o.name + "[" + opUuid + "]: pulled")
+
+		return operation, nextOpUuid
 	}
+
+	slog.Debug(o.name + "[" + opUuid + "]: pulled nil")
 
 	return nil, ""
 }
