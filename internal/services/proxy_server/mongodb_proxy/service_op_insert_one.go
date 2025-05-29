@@ -2,6 +2,7 @@ package mongodb_proxy
 
 import (
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/insert_one"
 )
 
@@ -20,12 +21,8 @@ func (s *Service) InsertOne(
 	)
 }
 
-func (s *Service) InsertOneResult(operationUuid string) *insert_one.Operation {
+func (s *Service) InsertOneResult(operationUuid string) operations.OperationInterface {
 	op, _ := s.insertOneList.Pull(s.ctx, operationUuid)
 
-	if op == nil {
-		return nil
-	}
-
-	return op.(*insert_one.Operation)
+	return op
 }

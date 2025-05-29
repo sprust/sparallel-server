@@ -1,8 +1,7 @@
 package mongodb_proxy_objects
 
 type OperationsStats struct {
-	Running  int
-	Finished int
+	Items    int
 	Timeouts int
 }
 

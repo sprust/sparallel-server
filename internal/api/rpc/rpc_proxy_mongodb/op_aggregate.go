@@ -1,6 +1,8 @@
 package rpc_proxy_mongodb
 
-import "log/slog"
+import (
+	"log/slog"
+)
 
 type AggregateArgs struct {
 	Connection string

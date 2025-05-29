@@ -14,8 +14,7 @@ type Operations[T OperationInterface] struct {
 	name        string
 	mutex       sync.Mutex
 	connections *connections.Connections
-	running     map[string]T
-	finished    map[string]T
+	items       map[string]T
 
 	timeoutsMutex sync.Mutex
 	timeouts      map[string]time.Time
@@ -30,8 +29,7 @@ func NewOperations[T OperationInterface](
 	o := &Operations[T]{
 		name:        name,
 		connections: connections,
-		running:     make(map[string]T),
-		finished:    make(map[string]T),
+		items:       make(map[string]T),
 		timeouts:    make(map[string]time.Time),
 		ticker:      time.NewTicker(10 * time.Second),
 	}
@@ -74,10 +72,6 @@ func (o *Operations[T]) Add(
 			operation.Execute(ctx, coll)
 
 			slog.Debug(o.name + "[" + opUuid + "]: executed")
-
-			if operation.IsFinished() {
-				o.finishOperation(opUuid, operation)
-			}
 		}
 	}(ctx)
 
@@ -88,41 +82,35 @@ func (o *Operations[T]) Pull(ctx context.Context, opUuid string) (OperationInter
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	operation, exists := o.running[opUuid]
+	operation, exists := o.items[opUuid]
 
-	if exists {
-		return operation, ""
+	if !exists || !operation.IsFinished() {
+		slog.Debug(o.name + "[" + opUuid + "]: pulled nil")
+
+		return nil, ""
 	}
 
-	operation, exists = o.finished[opUuid]
+	nextOpUuid := ""
 
-	if exists {
-		nextOpUuid := ""
+	if operation.HasNext() {
+		nextOpUuid = uuid.New().String()
 
-		if operation.HasNext() {
-			nextOpUuid = uuid.New().String()
+		go func() {
+			slog.Debug(o.name + "[" + opUuid + "]: cloning as [" + nextOpUuid + "]")
 
-			go func() {
-				slog.Debug(o.name + "[" + opUuid + "]: cloning as [" + nextOpUuid + "]")
+			cloned := operation.Clone(ctx).(T)
 
-				cloned := operation.Clone(ctx).(T)
+			o.registerOperation(nextOpUuid, cloned)
 
-				o.finishOperation(nextOpUuid, cloned)
-
-				slog.Debug(o.name + "[" + nextOpUuid + "]: executed [cloned from [" + opUuid + "]")
-			}()
-		}
-
-		go o.deleteOperation(opUuid, false)
-
-		slog.Debug(o.name + "[" + opUuid + "]: pulled")
-
-		return operation, nextOpUuid
+			slog.Debug(o.name + "[" + nextOpUuid + "]: executed [cloned from [" + opUuid + "]")
+		}()
 	}
 
-	slog.Debug(o.name + "[" + opUuid + "]: pulled nil")
+	go o.deleteOperation(opUuid, false)
 
-	return nil, ""
+	slog.Debug(o.name + "[" + opUuid + "]: pulled")
+
+	return operation, nextOpUuid
 }
 
 func (o *Operations[T]) CheckTimeouts() {
@@ -143,8 +131,7 @@ func (o *Operations[T]) Stats() mongodb_proxy_objects.OperationsStats {
 	defer o.mutex.Unlock()
 
 	return mongodb_proxy_objects.OperationsStats{
-		Running:  len(o.running),
-		Finished: len(o.finished),
+		Items:    len(o.items),
 		Timeouts: len(o.timeouts),
 	}
 }
@@ -153,17 +140,9 @@ func (o *Operations[T]) registerOperation(opUuid string, operation T) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 
-	o.running[opUuid] = operation
+	o.items[opUuid] = operation
 
 	go o.registerTimeout(opUuid)
-}
-
-func (o *Operations[T]) finishOperation(opUuid string, operation T) {
-	o.mutex.Lock()
-	defer o.mutex.Unlock()
-
-	delete(o.running, opUuid)
-	o.finished[opUuid] = operation
 }
 
 func (o *Operations[T]) deleteOperation(opUuid string, isTimeout bool) {
@@ -174,8 +153,7 @@ func (o *Operations[T]) deleteOperation(opUuid string, isTimeout bool) {
 		slog.Warn("Deleting operation [" + opUuid + "] of [" + o.name + "] by timeout")
 	}
 
-	delete(o.running, opUuid)
-	delete(o.finished, opUuid)
+	delete(o.items, opUuid)
 
 	go o.deleteTimeout(opUuid)
 }

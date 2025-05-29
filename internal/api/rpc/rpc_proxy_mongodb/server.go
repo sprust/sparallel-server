@@ -44,7 +44,6 @@ func (p *ProxyMongodbServer) makeResult(
 ) {
 	if operation == nil {
 		reply.IsFinished = false
-		reply.Error = "unexisting operation"
 	} else {
 		reply.IsFinished = operation.IsFinished()
 
