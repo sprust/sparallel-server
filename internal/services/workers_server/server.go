@@ -8,11 +8,13 @@ import (
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/internal/services/workers_server/workers"
 	"sparallel_server/pkg/foundation/errs"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
 var service *Service
+var once sync.Once
 
 type Service struct {
 	command                   string
@@ -39,25 +41,23 @@ func NewService(
 	workersNumberScaleUp int,
 	workersNumberScaleDown int,
 ) *Service {
-	if service != nil {
-		panic("service is already created")
-	}
-
 	slog.Info("Creating workers service for [" + command + "] command...")
 
-	service = &Service{
-		command:                   command,
-		minWorkersNumber:          minWorkersNumber,
-		maxWorkersNumber:          maxWorkersNumber,
-		workersNumberPercentScale: workersNumberPercentScale,
-		workersNumberScaleUp:      workersNumberScaleUp,
-		workersNumberScaleDown:    workersNumberScaleDown,
+	once.Do(func() {
+		service = &Service{
+			command:                   command,
+			minWorkersNumber:          minWorkersNumber,
+			maxWorkersNumber:          maxWorkersNumber,
+			workersNumberPercentScale: workersNumberPercentScale,
+			workersNumberScaleUp:      workersNumberScaleUp,
+			workersNumberScaleDown:    workersNumberScaleDown,
 
-		workers: workers.NewWorkers(),
-		tasks:   tasks.NewTasks(),
+			workers: workers.NewWorkers(),
+			tasks:   tasks.NewTasks(),
 
-		closing: atomic.Bool{},
-	}
+			closing: atomic.Bool{},
+		}
+	})
 
 	return service
 }

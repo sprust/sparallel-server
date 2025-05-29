@@ -10,12 +10,14 @@ import (
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/workers_server"
+	"sync"
 	"time"
 )
 
-var statsFilePath = "storage/logs/stats.json"
-
 var service *Service
+var once sync.Once
+
+var statsFilePath = "storage/logs/stats.json"
 
 type SystemStats struct {
 	NumGoroutine  uint64
@@ -36,11 +38,9 @@ type CombinedStats struct {
 }
 
 func NewService() *Service {
-	if service != nil {
-		panic("stats service is already created")
-	}
-
-	service = &Service{}
+	once.Do(func() {
+		service = &Service{}
+	})
 
 	return service
 }

@@ -5,35 +5,35 @@ import (
 	"log/slog"
 	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/workers_server"
+	"sync"
 )
 
 var server *WorkersServer
+var once sync.Once
 
 type WorkersServer struct {
 	service *workers_server.Service
 }
 
 func NewServer(ctx context.Context) *WorkersServer {
-	if server != nil {
-		panic("workers server is already created")
-	}
+	once.Do(func() {
+		cfg := config.GetConfig()
 
-	cfg := config.GetConfig()
+		service := workers_server.NewService(
+			cfg.GetCommand(),
+			cfg.GetMinWorkersNumber(),
+			cfg.GetMaxWorkersNumber(),
+			cfg.GetWorkersNumberPercentScale(),
+			cfg.GetWorkersNumberScaleUp(),
+			cfg.GetWorkersNumberScaleDown(),
+		)
 
-	service := workers_server.NewService(
-		cfg.GetCommand(),
-		cfg.GetMinWorkersNumber(),
-		cfg.GetMaxWorkersNumber(),
-		cfg.GetWorkersNumberPercentScale(),
-		cfg.GetWorkersNumberScaleUp(),
-		cfg.GetWorkersNumberScaleDown(),
-	)
+		service.Start(ctx)
 
-	service.Start(ctx)
-
-	server = &WorkersServer{
-		service: service,
-	}
+		server = &WorkersServer{
+			service: service,
+		}
+	})
 
 	return server
 }

@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
+	"sync"
 )
 
 var server *ProxyMongodbServer
+var once sync.Once
 
 type ProxyMongodbServer struct {
 	ctx     context.Context
@@ -27,14 +29,14 @@ type ResultReply struct {
 }
 
 func NewServer(ctx context.Context) *ProxyMongodbServer {
-	if server != nil {
-		panic("server already initialized")
-	}
+	once.Do(func() {
+		server = &ProxyMongodbServer{
+			ctx:     ctx,
+			service: mongodb_proxy.NewService(ctx),
+		}
+	})
 
-	return &ProxyMongodbServer{
-		ctx:     ctx,
-		service: mongodb_proxy.NewService(ctx),
-	}
+	return server
 }
 
 func (p *ProxyMongodbServer) makeResult(
