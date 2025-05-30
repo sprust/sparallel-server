@@ -7,6 +7,7 @@ import (
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/aggregate"
+	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/bulk_write"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/insert_one"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
 	"sync"
@@ -21,6 +22,7 @@ type Service struct {
 	insertOneList *operations.Operations[*insert_one.Operation]
 	updateOneList *operations.Operations[*update_one.Operation]
 	aggregateList *operations.Operations[*aggregate.Operation]
+	bulkWriteList *operations.Operations[*bulk_write.Operation]
 }
 
 func NewService(ctx context.Context) *Service {
@@ -45,6 +47,11 @@ func NewService(ctx context.Context) *Service {
 			aggregateList: operations.NewOperations[*aggregate.Operation](
 				ctx,
 				"Aggregate",
+				connFactory,
+			),
+			bulkWriteList: operations.NewOperations[*bulk_write.Operation](
+				ctx,
+				"BulkWrite",
 				connFactory,
 			),
 		}

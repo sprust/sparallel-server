@@ -2,9 +2,11 @@ package rpc_proxy_mongodb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"sparallel_server/pkg/foundation/errs"
 	"time"
 )
@@ -16,6 +18,11 @@ const valueKey = "|v_"
 
 const datetimeType = "datetime"
 const idType = "id"
+
+type WriteModelWrapper struct {
+	Type  string          `json:"type"`
+	Model json.RawMessage `json:"model"`
+}
 
 func processDateValues(data interface{}) interface{} {
 	if data == nil {
@@ -88,4 +95,102 @@ func serializeForPHPMongoDB(doc interface{}) (string, error) {
 	}
 
 	return string(jsonData), nil
+}
+
+func unmarshalModels(data string) ([]mongo.WriteModel, error) {
+	var wrappers []WriteModelWrapper
+
+	if err := json.Unmarshal([]byte(data), &wrappers); err != nil {
+		return nil, err
+	}
+
+	models := make([]mongo.WriteModel, 0, len(wrappers))
+
+	for _, wrapper := range wrappers {
+		var model mongo.WriteModel
+
+		switch wrapper.Type {
+		case "insertOne":
+			var im struct {
+				Document interface{} `json:"document"`
+			}
+			if err := json.Unmarshal(wrapper.Model, &im); err != nil {
+				return nil, errors.New("insertOne [" + err.Error() + "]")
+			}
+			model = mongo.NewInsertOneModel().SetDocument(processDateValues(im.Document))
+		case "updateOne":
+			var um struct {
+				Filter interface{} `json:"filter"`
+				Update interface{} `json:"update"`
+				Upsert *bool       `json:"upsert,omitempty"`
+			}
+			if err := json.Unmarshal(wrapper.Model, &um); err != nil {
+				return nil, errors.New("updateOne [" + err.Error() + "]")
+			}
+			model = mongo.NewUpdateOneModel().
+				SetFilter(processDateValues(um.Filter)).
+				SetUpdate(processDateValues(um.Update))
+			if um.Upsert != nil {
+				model.(*mongo.UpdateOneModel).SetUpsert(*um.Upsert)
+			}
+
+		case "updateMany":
+			var um struct {
+				Filter interface{} `json:"filter"`
+				Update interface{} `json:"update"`
+				Upsert *bool       `json:"upsert,omitempty"`
+			}
+			if err := json.Unmarshal(wrapper.Model, &um); err != nil {
+				return nil, errors.New("updateMany [" + err.Error() + "]")
+			}
+			model = mongo.NewUpdateManyModel().
+				SetFilter(processDateValues(um.Filter)).
+				SetUpdate(processDateValues(um.Update))
+			if um.Upsert != nil {
+				model.(*mongo.UpdateManyModel).SetUpsert(*um.Upsert)
+			}
+
+		case "deleteOne":
+			var dm struct {
+				Filter interface{} `json:"filter"`
+			}
+			if err := json.Unmarshal(wrapper.Model, &dm); err != nil {
+				return nil, errors.New("deleteOne [" + err.Error() + "]")
+			}
+			model = mongo.NewDeleteOneModel().SetFilter(processDateValues(dm.Filter))
+
+		case "deleteMany":
+			var dm struct {
+				Filter interface{} `json:"filter"`
+			}
+			if err := json.Unmarshal(wrapper.Model, &dm); err != nil {
+				return nil, errors.New("deleteMany [" + err.Error() + "]")
+			}
+			model = mongo.NewDeleteManyModel().SetFilter(processDateValues(dm.Filter))
+
+		case "replaceOne":
+			var rm struct {
+				Filter      interface{} `json:"filter"`
+				Replacement interface{} `json:"replacement"`
+				Upsert      *bool       `json:"upsert,omitempty"`
+			}
+			if err := json.Unmarshal(wrapper.Model, &rm); err != nil {
+				return nil, errors.New("replaceOne [" + err.Error() + "]")
+			}
+			model = mongo.NewReplaceOneModel().
+				SetFilter(processDateValues(rm.Filter)).
+				SetReplacement(processDateValues(rm.Replacement))
+			if rm.Upsert != nil {
+				model.(*mongo.ReplaceOneModel).SetUpsert(*rm.Upsert)
+			}
+
+		default:
+			return nil, fmt.Errorf("unknown type of model: %s", wrapper.Type)
+		}
+
+		models = append(models, model)
+	}
+
+	return models, nil
+
 }
