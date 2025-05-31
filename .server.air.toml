@@ -3,8 +3,8 @@ testdata_dir = "testdata"
 tmp_dir = "bin"
 
 [build]
-args_bin = []
-bin = "./bin/server start"
+args_bin = ["start"]
+bin = "./bin/server"
 cmd = "CGO_ENABLED=1 GOOS=linux go build -a -o ./bin/server ./cmd/server/main.go"
 delay = 500
 exclude_dir = ["assets", "bin", "vendor", "testdata", "tests"]
