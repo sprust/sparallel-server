@@ -118,8 +118,6 @@ func (w *Workers) KillAnyFree() {
 
 		_ = worker.process.Close()
 
-		w.freeCount.Add(-1)
-
 		break
 	}
 }
