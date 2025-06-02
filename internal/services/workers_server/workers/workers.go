@@ -114,9 +114,9 @@ func (w *Workers) KillAnyFree() {
 	defer w.mutex.Unlock()
 
 	for _, worker := range w.free {
-		_ = worker.process.Close()
+		w.deleteByProcessUuid(worker.process.Uuid)
 
-		delete(w.free, worker.uuid)
+		_ = worker.process.Close()
 
 		w.freeCount.Add(-1)
 

@@ -21,6 +21,10 @@ func GetConfig() *Config {
 	return instance
 }
 
+func (c *Config) GetServerPidFilePath() string {
+	return os.Getenv("SERVER_PID_FILE_PATH")
+}
+
 func (c *Config) GetLogLevels() string {
 	return os.Getenv("LOG_LEVELS")
 }

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/rpc"
+	"os"
 	"sparallel_server/internal/api/rpc/rpc_ping_pong"
 	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
 	"sparallel_server/internal/api/rpc/rpc_workers"
@@ -23,12 +24,14 @@ type Server struct {
 	servers  []io.Closer
 	ticker   *time.Ticker
 	closing  bool
+	config   *config.Config
 }
 
 func NewServer(rpcPort string) *Server {
 	server := &Server{
 		rpcPort: rpcPort,
 		ticker:  time.NewTicker(1 * time.Second),
+		config:  config.GetConfig(),
 	}
 
 	return server
@@ -68,6 +71,16 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 
 		s.servers = append(s.servers, server)
+	}
+
+	pidFilePath := s.config.GetServerPidFilePath()
+
+	if pidFilePath != "" {
+		pid := os.Getpid()
+		err = os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), 0644)
+		if err != nil {
+			return errs.Err(err)
+		}
 	}
 
 	slog.Info("Listening on port " + s.rpcPort)
@@ -116,6 +129,16 @@ func (s *Server) Close() error {
 		}
 	}
 
+	pidFilePath := s.config.GetServerPidFilePath()
+
+	if pidFilePath != "" {
+		_, err := os.Stat(pidFilePath)
+
+		if err == nil {
+			_ = os.Remove(pidFilePath)
+		}
+	}
+
 	return errs.Err(joinErrors(errors))
 }
 
@@ -124,13 +147,11 @@ func (s *Server) getServers(ctx context.Context) []io.Closer {
 		rpc_ping_pong.NewServer(),
 	}
 
-	cfg := config.GetConfig()
-
-	if cfg.IsServeWorkers() {
+	if s.config.IsServeWorkers() {
 		servers = append(servers, rpc_workers.NewServer(ctx))
 	}
 
-	if cfg.IsServeProxy() {
+	if s.config.IsServeProxy() {
 		servers = append(servers, rpc_proxy_mongodb.NewServer(ctx))
 	}
 
