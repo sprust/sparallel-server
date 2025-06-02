@@ -8,6 +8,7 @@ import (
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/internal/services/workers_server/workers"
 	"sparallel_server/pkg/foundation/errs"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -17,12 +18,12 @@ var service *Service
 var once sync.Once
 
 type Service struct {
-	command                   string
-	minWorkersNumber          int
-	maxWorkersNumber          int
-	workersNumberPercentScale int
-	workersNumberScaleUp      int
-	workersNumberScaleDown    int
+	command                       string
+	minWorkersNumber              int
+	maxWorkersNumber              int
+	workersNumberScaleUp          int
+	workersNumberPercentScaleUp   int
+	workersNumberPercentScaleDown int
 
 	workers *workers.Workers
 	tasks   *tasks.Tasks
@@ -31,31 +32,35 @@ type Service struct {
 
 	tickersCtx       context.Context
 	tickersCtxCancel context.CancelFunc
+
+	scaledDownAtUnixTime int64
 }
 
 func NewService(
 	command string,
 	minWorkersNumber int,
 	maxWorkersNumber int,
-	workersNumberPercentScale int,
 	workersNumberScaleUp int,
-	workersNumberScaleDown int,
+	workersNumberPercentScaleUp int,
+	workersNumberPercentScaleDown int,
 ) *Service {
 	slog.Info("Creating workers service for [" + command + "] command...")
 
 	once.Do(func() {
 		service = &Service{
-			command:                   command,
-			minWorkersNumber:          minWorkersNumber,
-			maxWorkersNumber:          maxWorkersNumber,
-			workersNumberPercentScale: workersNumberPercentScale,
-			workersNumberScaleUp:      workersNumberScaleUp,
-			workersNumberScaleDown:    workersNumberScaleDown,
+			command:                       command,
+			minWorkersNumber:              minWorkersNumber,
+			maxWorkersNumber:              maxWorkersNumber,
+			workersNumberScaleUp:          workersNumberScaleUp,
+			workersNumberPercentScaleUp:   workersNumberPercentScaleUp,
+			workersNumberPercentScaleDown: workersNumberPercentScaleDown,
 
 			workers: workers.NewWorkers(),
 			tasks:   tasks.NewTasks(),
 
 			closing: atomic.Bool{},
+
+			scaledDownAtUnixTime: time.Now().Unix(),
 		}
 	})
 
@@ -146,6 +151,7 @@ func (s *Service) Stats() WorkersServerStats {
 			s.workers.Count(),
 			s.workers.FreeCount(),
 			s.workers.BusyCount(),
+			s.workers.LoadPercent(),
 		},
 		Tasks: StatTasks{
 			s.tasks.WaitingCount(),
@@ -169,6 +175,22 @@ func (s *Service) Close() error {
 func (s *Service) tickControlWorkers(ctx context.Context) error {
 	needWorkersNumber := s.minWorkersNumber
 
+	loadPercent := s.workers.LoadPercent()
+
+	if loadPercent >= s.workersNumberPercentScaleUp {
+		needWorkersNumber = s.workers.Count() + s.workersNumberScaleUp
+
+		slog.Warn("Working workers count more " + strconv.Itoa(loadPercent) + "%. Scale...")
+	}
+
+	if needWorkersNumber < s.minWorkersNumber {
+		needWorkersNumber = s.minWorkersNumber
+	} else if needWorkersNumber > s.maxWorkersNumber {
+		needWorkersNumber = s.maxWorkersNumber
+	}
+
+	var createdCount int
+
 	for s.workers.Count() < needWorkersNumber {
 		newProcess, err := processes.CreateProcess(
 			ctx,
@@ -187,6 +209,19 @@ func (s *Service) tickControlWorkers(ctx context.Context) error {
 		slog.Debug("Process [" + newProcess.Uuid + "] created.")
 
 		s.workers.Add(newProcess)
+
+		createdCount += 1
+	}
+
+	if time.Now().Unix()-s.scaledDownAtUnixTime > 5 {
+		if createdCount == 0 && s.workers.Count() > s.minWorkersNumber &&
+			s.workers.LoadPercent() < s.workersNumberPercentScaleDown {
+			s.workers.KillAnyFree()
+
+			slog.Warn("Killed free worker")
+		}
+
+		s.scaledDownAtUnixTime = time.Now().Unix()
 	}
 
 	return nil

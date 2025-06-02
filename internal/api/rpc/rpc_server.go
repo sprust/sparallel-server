@@ -107,10 +107,12 @@ func (s *Server) Close() error {
 		}
 	}
 
-	err := errs.Err(s.listener.Close())
+	if s.listener != nil {
+		err := errs.Err(s.listener.Close())
 
-	if err != nil {
-		errors = append(errors, err)
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
 	return errs.Err(joinErrors(errors))

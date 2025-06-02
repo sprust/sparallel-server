@@ -23,9 +23,9 @@ func NewServer(ctx context.Context) *WorkersServer {
 			cfg.GetCommand(),
 			cfg.GetMinWorkersNumber(),
 			cfg.GetMaxWorkersNumber(),
-			cfg.GetWorkersNumberPercentScale(),
 			cfg.GetWorkersNumberScaleUp(),
-			cfg.GetWorkersNumberScaleDown(),
+			cfg.GetWorkersNumberPercentScaleUp(),
+			cfg.GetWorkersNumberPercentScaleDown(),
 		)
 
 		service.Start(ctx)

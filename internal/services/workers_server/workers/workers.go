@@ -109,6 +109,21 @@ func (w *Workers) DeleteByGroup(groupUuid string) []*processes.Process {
 	return deletedProcesses
 }
 
+func (w *Workers) KillAnyFree() {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	for _, worker := range w.free {
+		_ = worker.process.Close()
+
+		delete(w.free, worker.uuid)
+
+		w.freeCount.Add(-1)
+
+		break
+	}
+}
+
 func (w *Workers) Count() int {
 	return int(w.totalCount.Load())
 }
@@ -119,6 +134,16 @@ func (w *Workers) BusyCount() int {
 
 func (w *Workers) FreeCount() int {
 	return int(w.freeCount.Load())
+}
+
+func (w *Workers) LoadPercent() int {
+	count := w.Count()
+
+	if count == 0 {
+		return 0
+	}
+
+	return w.BusyCount() * 100 / count
 }
 
 func (w *Workers) Close() error {

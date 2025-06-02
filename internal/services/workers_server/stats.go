@@ -6,9 +6,10 @@ type WorkersServerStats struct {
 }
 
 type StatWorkers struct {
-	Count     int
-	FreeCount int
-	BusyCount int
+	Count       int
+	FreeCount   int
+	BusyCount   int
+	LoadPercent int
 }
 
 type StatTasks struct {
