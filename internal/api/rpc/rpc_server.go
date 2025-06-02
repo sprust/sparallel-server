@@ -11,6 +11,7 @@ import (
 	"sparallel_server/internal/api/rpc/rpc_ping_pong"
 	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
 	"sparallel_server/internal/api/rpc/rpc_workers"
+	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/stats_service"
 	"sparallel_server/pkg/foundation/errs"
 	"time"
@@ -119,11 +120,21 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) getServers(ctx context.Context) []io.Closer {
-	return []io.Closer{
+	servers := []io.Closer{
 		rpc_ping_pong.NewServer(),
-		rpc_workers.NewServer(ctx),
-		rpc_proxy_mongodb.NewServer(ctx),
 	}
+
+	cfg := config.GetConfig()
+
+	if cfg.IsServeWorkers() {
+		servers = append(servers, rpc_workers.NewServer(ctx))
+	}
+
+	if cfg.IsServeProxy() {
+		servers = append(servers, rpc_proxy_mongodb.NewServer(ctx))
+	}
+
+	return servers
 }
 
 func joinErrors(errors []error) error {

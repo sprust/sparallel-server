@@ -33,6 +33,14 @@ func (c *Config) GetCommand() string {
 	return os.Getenv("WORKER_COMMAND")
 }
 
+func (c *Config) IsServeProxy() bool {
+	return os.Getenv("SERVE_PROXY") == "true"
+}
+
+func (c *Config) IsServeWorkers() bool {
+	return os.Getenv("SERVE_WORKERS") == "true"
+}
+
 func (c *Config) GetMinWorkersNumber() int {
 	value, _ := strconv.Atoi(os.Getenv("MIN_WORKERS_NUMBER"))
 	return value
