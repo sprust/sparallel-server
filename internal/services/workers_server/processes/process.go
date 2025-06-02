@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"sparallel_server/pkg/foundation/errs"
+	"strconv"
 	"strings"
 )
 
@@ -38,10 +39,12 @@ func CreateProcess(ctx context.Context, command string, handler FinishedHandler)
 		args = parts[1:]
 	}
 
+	processUuid := uuid.New().String()
+
 	cmd := exec.CommandContext(ctx, parts[0], args...)
 
 	cmd.Cancel = func() error {
-		slog.Debug("Cancel process: " + command)
+		slog.Debug("Canceling process [" + processUuid + "] [" + strconv.Itoa(cmd.Process.Pid) + "]")
 
 		err := cmd.Process.Signal(os.Interrupt)
 
@@ -75,8 +78,6 @@ func CreateProcess(ctx context.Context, command string, handler FinishedHandler)
 	if err = cmd.Start(); err != nil {
 		return nil, errs.Err(err)
 	}
-
-	processUuid := uuid.New().String()
 
 	go func(_ context.Context, cmd *exec.Cmd, handler FinishedHandler, processUuid string) {
 		_ = cmd.Wait()

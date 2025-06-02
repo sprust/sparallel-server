@@ -213,7 +213,7 @@ func (s *Service) tickControlWorkers(ctx context.Context) error {
 			return errs.Err(err)
 		}
 
-		slog.Debug("Process [" + newProcess.Uuid + "] created.")
+		slog.Debug("Process [" + newProcess.Uuid + "] [" + strconv.Itoa(newProcess.Cmd.Process.Pid) + "] created.")
 
 		s.workers.Add(newProcess)
 
