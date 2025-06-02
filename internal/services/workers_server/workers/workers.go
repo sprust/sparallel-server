@@ -124,6 +124,19 @@ func (w *Workers) KillAnyFree() {
 	}
 }
 
+func (w *Workers) HasProcess(pid int) bool {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	for _, worker := range w.pw {
+		if worker.process.Cmd.Process.Pid == pid {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (w *Workers) Count() int {
 	return int(w.totalCount.Load())
 }

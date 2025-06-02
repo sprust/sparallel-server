@@ -1,8 +1,10 @@
 package workers_server
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
+	"os"
 	"os/exec"
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
@@ -93,6 +95,11 @@ func (s *Service) Start(ctx context.Context) {
 		},
 		func(ctx context.Context, s *Service) {
 			s.tickHandleTasks(ctx)
+		},
+		func(ctx context.Context, s *Service) {
+			s.tickFindAndKillZombies()
+
+			time.Sleep(10 * time.Second)
 		},
 	}
 
@@ -245,6 +252,30 @@ func (s *Service) tickHandleTasks(ctx context.Context) {
 	go func(_ context.Context, task *tasks.Task) {
 		s.handleTask(task)
 	}(ctx, task)
+}
+
+func (s *Service) tickFindAndKillZombies() {
+	foundProcesses, err := exec.Command("pgrep", "-f", s.command).Output()
+
+	if err != nil {
+		slog.Error("Failed to find zombies: " + err.Error())
+
+		return
+	}
+
+	for _, pid := range bytes.Fields(foundProcesses) {
+		if pidInt, err := strconv.Atoi(string(pid)); err == nil {
+			if !s.workers.HasProcess(pidInt) {
+				slog.Warn("Killing zombie process: " + string(pid))
+
+				proc, _ := os.FindProcess(pidInt)
+
+				if proc != nil {
+					_ = proc.Kill()
+				}
+			}
+		}
+	}
 }
 
 func (s *Service) handleTask(task *tasks.Task) {
