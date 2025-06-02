@@ -81,6 +81,8 @@ func (s *Server) Run(ctx context.Context) error {
 		if err != nil {
 			return errs.Err(err)
 		}
+
+		slog.Warn("Pid file created: " + pidFilePath)
 	}
 
 	slog.Info("Listening on port " + s.rpcPort)
@@ -136,6 +138,8 @@ func (s *Server) Close() error {
 
 		if err == nil {
 			_ = os.Remove(pidFilePath)
+
+			slog.Warn("Pid file deleted: " + pidFilePath)
 		}
 	}
 

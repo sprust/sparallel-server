@@ -3,4 +3,4 @@
 bin
 
 air-build-errors.log
-sparallel_pid
+storage/sparallel_pid
