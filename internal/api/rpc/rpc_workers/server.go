@@ -38,37 +38,6 @@ func NewServer(ctx context.Context) *WorkersServer {
 	return server
 }
 
-type AddTaskArgs struct {
-	GroupUuid   string
-	TaskUuid    string
-	UnixTimeout int
-	Payload     string
-}
-
-type AddTaskResult struct {
-	Uuid string
-}
-
-type DetectFinishedTaskArgs struct {
-	GroupUuid string
-}
-
-type DetectFinishedTaskResult struct {
-	GroupUuid  string
-	TaskUuid   string
-	IsFinished bool
-	Response   string
-	IsError    bool
-}
-
-type CancelGroupArgs struct {
-	GroupUuid string
-}
-
-type CancelGroupResult struct {
-	GroupUuid string
-}
-
 func (s *WorkersServer) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 	task := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
 
@@ -97,8 +66,8 @@ func (s *WorkersServer) CancelGroup(args *CancelGroupArgs, reply *CancelGroupRes
 	return nil
 }
 
-func (p *WorkersServer) Close() error {
+func (s *WorkersServer) Close() error {
 	slog.Warn("Closing workers server")
 
-	return p.service.Close()
+	return s.service.Close()
 }
