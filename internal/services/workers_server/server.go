@@ -117,7 +117,7 @@ func (s *Service) AddTask(groupUuid string, taskUuid string, unixTimeout int, pa
 		Payload:     payload,
 	}
 
-	s.tasks.AddWaiting(newTask)
+	go s.tasks.AddWaiting(newTask)
 
 	return newTask
 }
@@ -145,6 +145,10 @@ func (s *Service) CancelGroup(groupUuid string) {
 			_ = deletedProcess.Close()
 		}
 	}
+}
+
+func (s *Service) Reload() {
+	go s.workers.Reload()
 }
 
 func (s *Service) Stats() WorkersServerStats {

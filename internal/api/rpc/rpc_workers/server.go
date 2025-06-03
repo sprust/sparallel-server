@@ -59,7 +59,7 @@ func (s *WorkersServer) DetectAnyFinishedTask(args *DetectFinishedTaskArgs, repl
 }
 
 func (s *WorkersServer) CancelGroup(args *CancelGroupArgs, reply *CancelGroupResult) error {
-	s.service.CancelGroup(args.GroupUuid)
+	go s.service.CancelGroup(args.GroupUuid)
 
 	reply.GroupUuid = args.GroupUuid
 
