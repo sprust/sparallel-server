@@ -27,6 +27,7 @@ type Worker struct {
 	uuid    string
 	process *processes.Process
 	task    *tasks.Task
+	reload  bool
 }
 
 func (w *Worker) GetProcess() *processes.Process {

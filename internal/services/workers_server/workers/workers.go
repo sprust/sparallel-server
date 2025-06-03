@@ -72,6 +72,14 @@ func (w *Workers) Free(worker *Worker) {
 
 	worker.task = nil
 
+	if worker.reload {
+		w.deleteByProcessUuid(worker.process.Uuid)
+
+		_ = worker.process.Close()
+
+		return
+	}
+
 	delete(w.busy, worker.uuid)
 
 	w.busyCount.Add(-1)
@@ -119,6 +127,21 @@ func (w *Workers) KillAnyFree() {
 		_ = worker.process.Close()
 
 		break
+	}
+}
+
+func (w *Workers) Reload() {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	for _, worker := range w.busy {
+		worker.reload = true
+	}
+
+	for _, worker := range w.free {
+		w.deleteByProcessUuid(worker.process.Uuid)
+
+		_ = worker.process.Close()
 	}
 }
 
