@@ -11,9 +11,9 @@ import (
 	"os"
 	"sparallel_server/internal/api/rpc/rpc_ping_pong"
 	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
+	"sparallel_server/internal/api/rpc/rpc_stats"
 	"sparallel_server/internal/api/rpc/rpc_workers"
 	"sparallel_server/internal/config"
-	"sparallel_server/internal/services/stats_service"
 	"sparallel_server/pkg/foundation/errs"
 	"sync/atomic"
 	"time"
@@ -32,7 +32,6 @@ type Server struct {
 func NewServer(rpcPort string) *Server {
 	server := &Server{
 		rpcPort: rpcPort,
-		ticker:  time.NewTicker(1 * time.Second),
 		config:  config.GetConfig(),
 	}
 
@@ -40,21 +39,6 @@ func NewServer(rpcPort string) *Server {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	statsService := stats_service.NewService()
-
-	go func(_ context.Context, statsService *stats_service.Service) {
-		defer s.ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-s.ticker.C:
-				statsService.Save()
-			}
-		}
-	}(ctx, statsService)
-
 	listener, err := net.Listen("tcp", ":"+s.rpcPort)
 
 	if err != nil {
@@ -157,6 +141,7 @@ func (s *Server) Close() error {
 func (s *Server) getServers(ctx context.Context) []io.Closer {
 	servers := []io.Closer{
 		rpc_ping_pong.NewServer(),
+		rpc_stats.NewServer(),
 	}
 
 	if s.config.IsServeWorkers() {

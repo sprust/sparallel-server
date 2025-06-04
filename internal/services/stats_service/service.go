@@ -1,11 +1,6 @@
 package stats_service
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"log/slog"
-	"os"
 	"runtime"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
@@ -16,8 +11,6 @@ import (
 
 var service *Service
 var once sync.Once
-
-var statsFilePath = "storage/logs/stats.json"
 
 type SystemStats struct {
 	NumGoroutine  uint64
@@ -45,7 +38,7 @@ func NewService() *Service {
 	return service
 }
 
-func (s *Service) Save() {
+func (s *Service) Get() CombinedStats {
 	combined := CombinedStats{
 		DateTime: time.Now(),
 	}
@@ -80,43 +73,5 @@ func (s *Service) Save() {
 		combined.MongodbProxy = &mongodbProxyServiceStats
 	}
 
-	jsonData, err := json.Marshal(combined)
-
-	if err != nil {
-		slog.Error("Failed to marshal stats", "error", err)
-
-		return
-	}
-
-	err = os.WriteFile(statsFilePath, jsonData, 0644)
-
-	if err != nil {
-		slog.Error("Failed to write stats file", "error", err)
-
-		return
-	}
-}
-
-func (s *Service) Print() error {
-	content, err := os.ReadFile(statsFilePath)
-
-	if err != nil {
-		slog.Error("Failed to read stats file", "error", err)
-
-		return err
-	}
-
-	var prettyJSON bytes.Buffer
-
-	err = json.Indent(&prettyJSON, content, "", "    ")
-
-	if err != nil {
-		slog.Error("Failed to format JSON", "error", err)
-
-		return err
-	}
-
-	fmt.Println(prettyJSON.String())
-
-	return err
+	return combined
 }
