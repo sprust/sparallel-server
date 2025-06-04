@@ -25,8 +25,6 @@ type GetResult struct {
 }
 
 func (s *StatsServer) Get(args *StatsArgs, reply *GetResult) error {
-	slog.Debug("Get stats with message [" + args.Message + "]")
-
 	stats := s.service.Get()
 
 	jsonData, err := json.Marshal(stats)
