@@ -15,6 +15,7 @@ import (
 	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/stats_service"
 	"sparallel_server/pkg/foundation/errs"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,7 +24,8 @@ type Server struct {
 	listener net.Listener
 	servers  []io.Closer
 	ticker   *time.Ticker
-	closing  bool
+	closing  atomic.Bool
+	closed   atomic.Bool
 	config   *config.Config
 }
 
@@ -90,7 +92,7 @@ func (s *Server) Run(ctx context.Context) error {
 	for {
 		conn, err := s.listener.Accept()
 
-		if s.closing == true {
+		if s.closing.Load() {
 			break
 		}
 
@@ -105,13 +107,17 @@ func (s *Server) Run(ctx context.Context) error {
 		go rpc.ServeCodec(goridgeRpc.NewCodec(conn))
 	}
 
+	for !s.closed.Load() {
+		//
+	}
+
 	return nil
 }
 
 func (s *Server) Close() error {
 	slog.Warn("Closing rpc server...")
 
-	s.closing = true
+	s.closing.Store(true)
 
 	var errors []error
 
@@ -142,6 +148,8 @@ func (s *Server) Close() error {
 			slog.Warn("Pid file deleted: " + pidFilePath)
 		}
 	}
+
+	s.closed.Store(true)
 
 	return errs.Err(joinErrors(errors))
 }

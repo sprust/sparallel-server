@@ -2,8 +2,11 @@ package workers
 
 import (
 	"github.com/google/uuid"
+	"log/slog"
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
+	"strconv"
+	"time"
 )
 
 func NewWorkers() *Workers {
@@ -34,7 +37,7 @@ func (w *Workers) Add(process *processes.Process) {
 }
 
 func (w *Workers) Take(task *tasks.Task) *Worker {
-	if w.freeCount.Load() == 0 {
+	if w.freeCount.Load() == 0 || w.closing.Load() {
 		return nil
 	}
 
@@ -181,6 +184,20 @@ func (w *Workers) LoadPercent() int {
 }
 
 func (w *Workers) Close() error {
+	slog.Warn("Closing workers...")
+
+	w.closing.Store(true)
+
+	triesCount := 5
+
+	for w.BusyCount() > 0 && triesCount > 0 {
+		slog.Warn("Waiting for workers to close [" + strconv.Itoa(triesCount) + "]...")
+
+		time.Sleep(1 * time.Second)
+
+		triesCount -= 1
+	}
+
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 

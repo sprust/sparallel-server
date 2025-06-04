@@ -2,6 +2,7 @@ package workers_server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os/exec"
 	"sparallel_server/internal/services/workers_server/processes"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -107,7 +109,18 @@ func (s *Service) Start(ctx context.Context) {
 	}
 }
 
-func (s *Service) AddTask(groupUuid string, taskUuid string, unixTimeout int, payload string) *tasks.Task {
+func (s *Service) AddTask(
+	groupUuid string,
+	taskUuid string,
+	unixTimeout int,
+	payload string,
+) (*tasks.Task, error) {
+	if s.closing.Load() {
+		slog.Error("Service is closing. Can't add task [" + taskUuid + "] to group [" + groupUuid + "]")
+
+		return nil, errors.New("service is closing")
+	}
+
 	slog.Debug("Adding task [" + taskUuid + "] to group [" + groupUuid + "]")
 
 	newTask := &tasks.Task{
@@ -119,7 +132,7 @@ func (s *Service) AddTask(groupUuid string, taskUuid string, unixTimeout int, pa
 
 	go s.tasks.AddWaiting(newTask)
 
-	return newTask
+	return newTask, nil
 }
 
 func (s *Service) DetectAnyFinishedTask(groupUuid string) *tasks.Task {
@@ -153,6 +166,12 @@ func (s *Service) Reload(message string) {
 	go s.workers.Reload()
 }
 
+func (s *Service) Stop(message string) {
+	slog.Warn("Stop workers server with message [" + message + "]...")
+
+	_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+}
+
 func (s *Service) Stats() WorkersServerStats {
 	return WorkersServerStats{
 		Workers: StatWorkers{
@@ -171,11 +190,11 @@ func (s *Service) Stats() WorkersServerStats {
 func (s *Service) Close() error {
 	s.closing.Store(true)
 
-	s.tickersCtxCancel()
-
 	slog.Warn("Closing workers service...")
 
 	_ = s.workers.Close()
+
+	s.tickersCtxCancel()
 
 	return nil
 }

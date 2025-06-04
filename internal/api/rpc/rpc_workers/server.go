@@ -46,8 +46,20 @@ func (s *WorkersServer) Reload(args *ReloadArgs, reply *ReloadResult) error {
 	return nil
 }
 
+func (s *WorkersServer) Stop(args *StopArgs, reply *StopResult) error {
+	go s.service.Stop(args.Message)
+
+	reply.Answer = "Ok"
+
+	return nil
+}
+
 func (s *WorkersServer) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
-	task := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
+	task, err := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
+
+	if err != nil {
+		return err
+	}
 
 	reply.Uuid = task.TaskUuid
 

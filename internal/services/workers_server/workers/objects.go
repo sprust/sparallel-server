@@ -21,6 +21,8 @@ type Workers struct {
 	totalCount atomic.Int32
 	busyCount  atomic.Int32
 	freeCount  atomic.Int32
+
+	closing atomic.Bool
 }
 
 type Worker struct {
