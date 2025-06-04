@@ -14,6 +14,8 @@ import (
 	"strings"
 )
 
+// TODO: binary communication
+
 var lenOfHeaderLen = 20
 
 type Process struct {
