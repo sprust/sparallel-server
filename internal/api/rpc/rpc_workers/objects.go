@@ -1,5 +1,13 @@
 package rpc_workers
 
+type ReloadArgs struct {
+	Message string
+}
+
+type ReloadResult struct {
+	Answer string
+}
+
 type AddTaskArgs struct {
 	GroupUuid   string
 	TaskUuid    string

@@ -38,6 +38,14 @@ func NewServer(ctx context.Context) *WorkersServer {
 	return server
 }
 
+func (s *WorkersServer) Reload(args *ReloadArgs, reply *ReloadResult) error {
+	s.service.Reload(args.Message)
+
+	reply.Answer = "Ok"
+
+	return nil
+}
+
 func (s *WorkersServer) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
 	task := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
 

@@ -147,7 +147,9 @@ func (s *Service) CancelGroup(groupUuid string) {
 	}
 }
 
-func (s *Service) Reload() {
+func (s *Service) Reload(message string) {
+	slog.Warn("Reload workers with message [" + message + "]...")
+
 	go s.workers.Reload()
 }
 
