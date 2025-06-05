@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,8 +25,22 @@ jobs:
           CGO_ENABLED=0 GOOS=linux go build -v -a -o ./bin/sparallel_server ./cmd/server/main.go
           chmod +x ./bin/sparallel_server
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # We delete Latest tag if it exists
+          git tag -d latest || true
+          git push origin :refs/tags/latest || true
+          # We create a new tag
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
         with:
-          name: sparallel-server
-          path: ./bin/sparallel_server
+          files: ./bin/sparallel_server
+          tag_name: latest
+          name: Latest Build
+          body: Automatically collected latest version
+          token: ${{ secrets.GITHUB_TOKEN }}
