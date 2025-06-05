@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build
+        run: |
+          CGO_ENABLED=0 GOOS=linux go build -v -a -o ./bin/sparallel_server ./cmd/server/main.go
+          chmod +x ./bin/sparallel_server
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparallel-server
+          path: ./bin/sparallel_server
