@@ -39,6 +39,16 @@ func NewApp(
 }
 
 func (a *App) Start(commandName string, args []string) {
+	defer func(a *App) {
+		if r := recover(); r != nil {
+			err := a.Close()
+
+			if err != nil {
+				panic(errs.Err(err))
+			}
+		}
+	}(a)
+
 	if commandName == "" {
 		fmt.Println("Commands:")
 
@@ -68,6 +78,9 @@ func (a *App) Start(commandName string, args []string) {
 	}
 
 	signals := make(chan os.Signal)
+
+	defer signal.Stop(signals)
+	defer close(signals)
 
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 

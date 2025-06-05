@@ -1,3 +1,6 @@
 .idea
 .env
 bin
+
+air-build-errors.log
+storage/sparallel_pid
