@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 	"slices"
@@ -22,20 +21,14 @@ func init() {
 
 	flag.Parse()
 
-	var err error
-
 	if env == nil || *env == "" {
-		err = godotenv.Load()
+		appConfig.Init()
 	} else {
-		err = godotenv.Load(*env)
+		appConfig.Init(*env)
 
 		args = slices.DeleteFunc(args, func(arg string) bool {
 			return strings.HasPrefix(arg, "--env=")
 		})
-	}
-
-	if err != nil {
-		panic(err)
 	}
 }
 

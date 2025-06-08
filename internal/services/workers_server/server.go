@@ -5,9 +5,11 @@ import (
 	"errors"
 	"log/slog"
 	"os/exec"
+	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/internal/services/workers_server/workers"
+	appConfig "sparallel_server/pkg/foundation/config"
 	"sparallel_server/pkg/foundation/errs"
 	"strconv"
 	"sync"
@@ -200,6 +202,23 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) tickControlWorkers(ctx context.Context) error {
+	appConfig.GetConfig().Load()
+
+	cfg := config.GetConfig()
+
+	command := cfg.GetCommand()
+
+	if s.command != command {
+		s.Reload("Command changed. Reloading workers...")
+	}
+
+	s.command = command
+	s.minWorkersNumber = cfg.GetMinWorkersNumber()
+	s.maxWorkersNumber = cfg.GetMaxWorkersNumber()
+	s.workersNumberScaleUp = cfg.GetWorkersNumberScaleUp()
+	s.workersNumberPercentScaleUp = cfg.GetWorkersNumberPercentScaleUp()
+	s.workersNumberPercentScaleDown = cfg.GetWorkersNumberPercentScaleDown()
+
 	needWorkersNumber := s.minWorkersNumber
 
 	loadPercent := s.workers.LoadPercent()
