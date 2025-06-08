@@ -209,7 +209,7 @@ func (s *Service) tickControlWorkers(ctx context.Context) error {
 	command := cfg.GetCommand()
 
 	if s.command != command {
-		s.Reload("Command changed. Reloading workers...")
+		s.Reload("Command changed to [" + command + "]. Reloading workers...")
 	}
 
 	s.command = command
