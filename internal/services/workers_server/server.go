@@ -12,6 +12,7 @@ import (
 	appConfig "sparallel_server/pkg/foundation/config"
 	"sparallel_server/pkg/foundation/errs"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -311,7 +312,7 @@ func (s *Service) handleTask(task *tasks.Task) {
 	err := process.Write(task.Payload)
 
 	if err != nil {
-		slog.Debug("Error start task [" + task.TaskUuid + "]. Re waiting.")
+		slog.Error("Error start task [" + task.TaskUuid + "]. Re waiting.")
 
 		s.tasks.AddWaiting(task)
 
@@ -346,9 +347,13 @@ func (s *Service) handleTask(task *tasks.Task) {
 
 			_ = process.Close()
 
+			responseError := strings.TrimSpace(response.Error.Error())
+
 			task.IsFinished = true
-			task.Response = response.Error.Error()
+			task.Response = responseError
 			task.IsError = true
+
+			slog.Error("Error task [" + task.TaskUuid + "] response: " + responseError)
 
 			s.tasks.AddFinished(task)
 
