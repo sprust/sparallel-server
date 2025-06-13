@@ -78,6 +78,14 @@ func (s *WorkersServer) CancelGroup(args *CancelGroupArgs, reply *CancelGroupRes
 	return nil
 }
 
+func (s *WorkersServer) Pause() error {
+	return nil
+}
+
+func (s *WorkersServer) UnPause() error {
+	return nil
+}
+
 func (s *WorkersServer) Close() error {
 	slog.Warn("Closing workers server")
 

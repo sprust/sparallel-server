@@ -19,7 +19,7 @@ func (c *Command) Parameters() string {
 	return "{no parameters}"
 }
 
-func (c *Command) Handle(ctx context.Context, arguments []string) error {
+func (c *Command) Handle(ctx context.Context, _ []string) error {
 	rpcPort := config.GetConfig().GetRpcPort()
 
 	c.server = rpc.NewServer(rpcPort)
@@ -27,6 +27,14 @@ func (c *Command) Handle(ctx context.Context, arguments []string) error {
 	err := c.server.Run(ctx)
 
 	return errs.Err(err)
+}
+
+func (c *Command) Pause() error {
+	return c.server.Pause()
+}
+
+func (c *Command) UnPause() error {
+	return c.server.UnPause()
 }
 
 func (c *Command) Close() error {

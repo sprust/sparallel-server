@@ -20,7 +20,7 @@ type App struct {
 	config             config.Config
 	commands           map[string]commands.CommandInterface
 	serviceProviders   []ServiceProviderInterface
-	closeListeners     []io.Closer
+	runningCommands    []commands.CommandInterface
 	lastCloseListeners []io.Closer
 }
 
@@ -67,7 +67,7 @@ func (a *App) Start(commandName string, args []string) {
 		panic(errs.Err(errors.New("command not found")))
 	}
 
-	a.AddFirstCloseListener(command)
+	a.addRunningCommand(command)
 
 	for _, provider := range a.serviceProviders {
 		err := provider.Register()
@@ -83,16 +83,37 @@ func (a *App) Start(commandName string, args []string) {
 	defer close(signals)
 
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTSTP)
+	signal.Notify(signals, os.Interrupt, syscall.SIGCONT)
 
 	go func() {
-		<-signals
+		for {
+			sgn := <-signals
 
-		slog.Warn("received stop signal")
+			var err error
 
-		err := a.Close()
+			switch sgn {
+			case syscall.SIGTERM:
+				slog.Warn("received stop (SIGTERM) signal")
 
-		if err != nil {
-			panic(err)
+				err = a.Close()
+
+				break
+			case syscall.SIGTSTP:
+				slog.Warn("received pause (SIGTSTP) signal")
+
+				err = a.Pause()
+			case syscall.SIGCONT:
+				slog.Warn("received unpause (SIGCONT) signal")
+
+				err = a.UnPause()
+			default:
+				slog.Warn("received interrupt signal")
+			}
+
+			if err != nil {
+				panic(err)
+			}
 		}
 	}()
 
@@ -107,10 +128,46 @@ func (a *App) Start(commandName string, args []string) {
 	slog.Warn("Exit")
 }
 
+func (a *App) Pause() error {
+	slog.Warn("Pausing app...")
+
+	for _, listener := range a.runningCommands {
+		err := listener.Pause()
+
+		if err != nil {
+			return errs.Err(err)
+		}
+	}
+
+	return nil
+}
+
+func (a *App) UnPause() error {
+	slog.Warn("Unpausing app...")
+
+	for _, command := range a.runningCommands {
+		err := command.UnPause()
+
+		if err != nil {
+			return errs.Err(err)
+		}
+	}
+
+	return nil
+}
+
 func (a *App) Close() error {
 	slog.Warn("Closing app...")
 
-	for _, listener := range append(a.closeListeners, a.lastCloseListeners...) {
+	for _, command := range a.runningCommands {
+		err := command.Close()
+
+		if err != nil {
+			return errs.Err(err)
+		}
+	}
+
+	for _, listener := range a.lastCloseListeners {
 		err := listener.Close()
 
 		if err != nil {
@@ -121,12 +178,12 @@ func (a *App) Close() error {
 	return nil
 }
 
-func (a *App) AddFirstCloseListener(listener io.Closer) {
-	a.closeListeners = append(a.closeListeners, listener)
+func (a *App) addRunningCommand(listener commands.CommandInterface) {
+	a.runningCommands = append(a.runningCommands, listener)
 }
 
 func (a *App) AddLastCloseListener(listener io.Closer) {
-	a.lastCloseListeners = append(a.closeListeners, listener)
+	a.lastCloseListeners = append(a.lastCloseListeners, listener)
 }
 
 func (a *App) initLogging() {

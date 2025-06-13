@@ -129,6 +129,14 @@ func (p *ProxyMongodbServer) makeResult(
 //	return c.collection.Indexes().CreateMany(ctx, models)
 //}
 
+func (p *ProxyMongodbServer) Pause() error {
+	return nil
+}
+
+func (p *ProxyMongodbServer) UnPause() error {
+	return nil
+}
+
 func (p *ProxyMongodbServer) Close() error {
 	slog.Warn("Closing mongodb-proxy server")
 

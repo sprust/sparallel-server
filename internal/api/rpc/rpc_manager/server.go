@@ -26,6 +26,30 @@ func NewServer() *ManagerServer {
 	return server
 }
 
+func (s *ManagerServer) Sleep(args *SleepArgs, reply *SleepResult) error {
+	slog.Warn("Sleep server with message [" + args.Message + "]...")
+
+	go func() {
+		_ = syscall.Kill(syscall.Getpid(), syscall.SIGTSTP)
+	}()
+
+	reply.Answer = "Ok"
+
+	return nil
+}
+
+func (s *ManagerServer) WakeUp(args *WakeUpArgs, reply *WakeUpResult) error {
+	slog.Warn("Wake up server with message [" + args.Message + "]...")
+
+	go func() {
+		_ = syscall.Kill(syscall.Getpid(), syscall.SIGCONT)
+	}()
+
+	reply.Answer = "Ok"
+
+	return nil
+}
+
 func (s *ManagerServer) Stop(args *StopArgs, reply *StopResult) error {
 	slog.Warn("Stop server with message [" + args.Message + "]...")
 
@@ -53,6 +77,14 @@ func (s *ManagerServer) Stats(_ *StatsArgs, reply *StatsResult) error {
 
 	reply.Json = string(jsonData)
 
+	return nil
+}
+
+func (s *ManagerServer) Pause() error {
+	return nil
+}
+
+func (s *ManagerServer) UnPause() error {
 	return nil
 }
 
