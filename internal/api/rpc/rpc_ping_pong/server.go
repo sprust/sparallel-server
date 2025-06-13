@@ -27,6 +27,15 @@ func (s *PingPongServer) Ping(args *PingArgs, reply *PingResult) error {
 
 	return nil
 }
+
+func (s *PingPongServer) Pause() error {
+	return nil
+}
+
+func (s *PingPongServer) UnPause() error {
+	return nil
+}
+
 func (s *PingPongServer) Close() error {
 	slog.Warn("Closing ping-pong server")
 

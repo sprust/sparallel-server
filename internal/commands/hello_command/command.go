@@ -16,9 +16,17 @@ func (c *Command) Parameters() string {
 	return ""
 }
 
-func (c *Command) Handle(ctx context.Context, arguments []string) error {
+func (c *Command) Handle(_ context.Context, _ []string) error {
 	fmt.Println("hello")
 
+	return nil
+}
+
+func (c *Command) Pause() error {
+	return nil
+}
+
+func (c *Command) UnPause() error {
 	return nil
 }
 
