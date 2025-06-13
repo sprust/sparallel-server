@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -167,12 +166,6 @@ func (s *Service) Reload(message string) {
 	slog.Warn("Reload workers with message [" + message + "]...")
 
 	go s.workers.Reload()
-}
-
-func (s *Service) Stop(message string) {
-	slog.Warn("Stop workers server with message [" + message + "]...")
-
-	_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 }
 
 func (s *Service) Stats() WorkersServerStats {

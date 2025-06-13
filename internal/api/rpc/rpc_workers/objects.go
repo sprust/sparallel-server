@@ -8,14 +8,6 @@ type ReloadResult struct {
 	Answer string
 }
 
-type StopArgs struct {
-	Message string
-}
-
-type StopResult struct {
-	Answer string
-}
-
 type AddTaskArgs struct {
 	GroupUuid   string
 	TaskUuid    string

@@ -9,9 +9,9 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"sparallel_server/internal/api/rpc/rpc_manager"
 	"sparallel_server/internal/api/rpc/rpc_ping_pong"
 	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
-	"sparallel_server/internal/api/rpc/rpc_stats"
 	"sparallel_server/internal/api/rpc/rpc_workers"
 	"sparallel_server/internal/config"
 	"sparallel_server/pkg/foundation/errs"
@@ -141,7 +141,7 @@ func (s *Server) Close() error {
 func (s *Server) getServers(ctx context.Context) []io.Closer {
 	servers := []io.Closer{
 		rpc_ping_pong.NewServer(),
-		rpc_stats.NewServer(),
+		rpc_manager.NewServer(),
 	}
 
 	if s.config.IsServeWorkers() {
