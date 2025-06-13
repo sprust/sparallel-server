@@ -2,10 +2,13 @@ package rpc_workers
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/workers_server"
+	"sparallel_server/pkg/foundation/errs"
 	"sync"
+	"sync/atomic"
 )
 
 var server *WorkersServer
@@ -13,6 +16,7 @@ var once sync.Once
 
 type WorkersServer struct {
 	service *workers_server.Service
+	pausing atomic.Bool
 }
 
 func NewServer(ctx context.Context) *WorkersServer {
@@ -39,6 +43,10 @@ func NewServer(ctx context.Context) *WorkersServer {
 }
 
 func (s *WorkersServer) Reload(args *ReloadArgs, reply *ReloadResult) error {
+	if s.pausing.Load() {
+		return errs.Err(errors.New("server is pausing"))
+	}
+
 	s.service.Reload(args.Message)
 
 	reply.Answer = "Ok"
@@ -47,6 +55,14 @@ func (s *WorkersServer) Reload(args *ReloadArgs, reply *ReloadResult) error {
 }
 
 func (s *WorkersServer) AddTask(args *AddTaskArgs, reply *AddTaskResult) error {
+	if s.pausing.Load() {
+		err := errors.New("workers server is pausing")
+
+		slog.Error("error at task adding: " + err.Error())
+
+		return errs.Err(err)
+	}
+
 	task, err := s.service.AddTask(args.GroupUuid, args.TaskUuid, args.UnixTimeout, args.Payload)
 
 	if err != nil {
@@ -79,10 +95,20 @@ func (s *WorkersServer) CancelGroup(args *CancelGroupArgs, reply *CancelGroupRes
 }
 
 func (s *WorkersServer) Pause() error {
+	s.pausing.Store(true)
+
+	slog.Warn("Workers server is pausing")
+
 	return nil
 }
 
 func (s *WorkersServer) UnPause() error {
+	s.service.Reload("unpausing")
+
+	s.pausing.Store(false)
+
+	slog.Warn("Workers server is unpausing")
+
 	return nil
 }
 
