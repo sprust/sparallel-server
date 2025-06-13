@@ -1,7 +1,5 @@
 package workers
 
-import "sync/atomic"
-
 func (w *Workers) GetCount() int {
 	return int(w.totalCount.Load())
 }
@@ -38,8 +36,4 @@ func (w *Workers) GetFreedCount() int {
 
 func (w *Workers) GetDeletedCount() int {
 	return int(w.deletedCount.Load())
-}
-
-func (w *Workers) incCount(counter *atomic.Int64) {
-	go counter.Add(1)
 }

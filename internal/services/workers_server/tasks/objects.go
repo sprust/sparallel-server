@@ -1,8 +1,18 @@
 package tasks
 
+import "sync/atomic"
+
 type Tasks struct {
 	waiting  *SubTasks
 	finished *SubTasks
+
+	addedTotalCount    atomic.Int64
+	reAddedTotalCount  atomic.Int64
+	tookTotalCount     atomic.Int64
+	finishedTotalCount atomic.Int64
+	successTotalCount  atomic.Int64
+	errorTotalCount    atomic.Int64
+	timeoutTotalCount  atomic.Int64
 }
 
 type Group struct {

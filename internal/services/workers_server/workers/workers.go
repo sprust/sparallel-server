@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
+	"sparallel_server/pkg/foundation/helpers"
 	"strconv"
 	"time"
 )
@@ -35,7 +36,7 @@ func (w *Workers) Add(process *processes.Process) {
 	w.totalCount.Add(1)
 	w.freeCount.Add(1)
 
-	w.incCount(&w.addedCount)
+	helpers.IncInt64Async(&w.addedCount)
 }
 
 func (w *Workers) Take(task *tasks.Task) *Worker {
@@ -68,7 +69,7 @@ func (w *Workers) Take(task *tasks.Task) *Worker {
 
 	w.busyCount.Add(1)
 
-	w.incCount(&w.tookCount)
+	helpers.IncInt64Async(&w.tookCount)
 
 	return selectedWorker
 }
@@ -95,7 +96,7 @@ func (w *Workers) Free(worker *Worker) {
 
 	w.freeCount.Add(1)
 
-	w.incCount(&w.freedCount)
+	helpers.IncInt64Async(&w.freedCount)
 }
 
 func (w *Workers) DeleteByProcess(processUuid string) {
@@ -219,7 +220,7 @@ func (w *Workers) deleteByProcessUuid(processUuid string) *processes.Process {
 
 	w.totalCount.Add(-1)
 
-	w.incCount(&w.deletedCount)
+	helpers.IncInt64Async(&w.deletedCount)
 
 	return worker.process
 }

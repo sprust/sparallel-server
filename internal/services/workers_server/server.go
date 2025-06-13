@@ -181,8 +181,15 @@ func (s *Service) Stats() WorkersServerStats {
 			s.workers.GetDeletedCount(),
 		},
 		Tasks: StatTasks{
-			s.tasks.WaitingCount(),
-			s.tasks.FinishedCount(),
+			s.tasks.GetWaitingCount(),
+			s.tasks.GetFinishedCount(),
+			s.tasks.GetAddedTotalCount(),
+			s.tasks.GetReAddedTotalCount(),
+			s.tasks.GetTookTotalCount(),
+			s.tasks.GetFinishedTotalCount(),
+			s.tasks.GetSuccessTotalCount(),
+			s.tasks.GetErrorTotalCount(),
+			s.tasks.GetTimeoutTotalCount(),
 		},
 	}
 }
@@ -299,7 +306,7 @@ func (s *Service) handleTask(task *tasks.Task) {
 	if worker == nil {
 		slog.Debug("Not found worker for task [" + task.TaskUuid + "]")
 
-		s.tasks.AddWaiting(task)
+		s.tasks.ReAddWaiting(task)
 
 		return
 	}
@@ -311,7 +318,7 @@ func (s *Service) handleTask(task *tasks.Task) {
 	if err != nil {
 		slog.Error("Error start task [" + task.TaskUuid + "]. Re waiting.")
 
-		s.tasks.AddWaiting(task)
+		s.tasks.ReAddWaiting(task)
 
 		s.workers.DeleteByProcess(process.Uuid)
 

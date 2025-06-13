@@ -120,7 +120,7 @@ func (s *SubTasks) FlushFirstRotten() int {
 	return 0
 }
 
-func (s *SubTasks) Count() int {
+func (s *SubTasks) GetCount() int {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

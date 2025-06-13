@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"log/slog"
+	"sparallel_server/pkg/foundation/helpers"
 	"strconv"
 )
 
@@ -16,6 +17,16 @@ func (t *Tasks) AddWaiting(task *Task) {
 	slog.Debug("Task [" + task.TaskUuid + "] waiting")
 
 	t.waiting.AddTask(task)
+
+	helpers.IncInt64Async(&t.addedTotalCount)
+}
+
+func (t *Tasks) ReAddWaiting(task *Task) {
+	slog.Debug("Task [" + task.TaskUuid + "] waiting again")
+
+	t.waiting.AddTask(task)
+
+	helpers.IncInt64Async(&t.reAddedTotalCount)
 }
 
 func (t *Tasks) TakeWaiting() *Task {
@@ -24,6 +35,8 @@ func (t *Tasks) TakeWaiting() *Task {
 	if task == nil {
 		return nil
 	}
+
+	helpers.IncInt64Async(&t.tookTotalCount)
 
 	slog.Debug("Task [" + task.TaskUuid + "] taken")
 
@@ -34,6 +47,14 @@ func (t *Tasks) AddFinished(task *Task) {
 	slog.Debug("Task [" + task.TaskUuid + "] finished")
 
 	t.finished.AddTask(task)
+
+	helpers.IncInt64Async(&t.finishedTotalCount)
+
+	if task.IsError {
+		helpers.IncInt64Async(&t.errorTotalCount)
+	} else {
+		helpers.IncInt64Async(&t.successTotalCount)
+	}
 }
 
 func (t *Tasks) TakeFinished(groupUuid string) *Task {
@@ -47,12 +68,16 @@ func (t *Tasks) FlushRottenTasks() {
 
 	if deletedCount > 0 {
 		slog.Debug("Flushed rotten waiting tasks: " + strconv.Itoa(deletedCount))
+
+		helpers.IncInt64AsyncDelta(&t.timeoutTotalCount, deletedCount)
 	}
 
 	deletedCount = t.finished.FlushFirstRotten()
 
 	if deletedCount > 0 {
 		slog.Debug("Flushed rotten finished tasks: " + strconv.Itoa(deletedCount))
+
+		helpers.IncInt64AsyncDelta(&t.timeoutTotalCount, deletedCount)
 	}
 }
 
@@ -64,12 +89,4 @@ func (t *Tasks) DeleteGroup(groupUuid string) {
 func (t *Tasks) DeleteTask(task *Task) {
 	t.waiting.DeleteTask(task)
 	t.finished.DeleteTask(task)
-}
-
-func (t *Tasks) WaitingCount() int {
-	return t.waiting.Count()
-}
-
-func (t *Tasks) FinishedCount() int {
-	return t.finished.Count()
 }

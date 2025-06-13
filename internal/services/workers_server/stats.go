@@ -17,6 +17,13 @@ type StatWorkers struct {
 }
 
 type StatTasks struct {
-	WaitingCount  int
-	FinishedCount int
+	WaitingCount       int
+	FinishedCount      int
+	AddedTotalCount    int
+	ReAddedTotalCount  int
+	TookTotalCount     int
+	FinishedTotalCount int
+	SuccessTotalCount  int
+	ErrorTotalCount    int
+	TimeoutTotalCount  int
 }
