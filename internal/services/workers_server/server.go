@@ -171,10 +171,14 @@ func (s *Service) Reload(message string) {
 func (s *Service) Stats() WorkersServerStats {
 	return WorkersServerStats{
 		Workers: StatWorkers{
-			s.workers.Count(),
-			s.workers.FreeCount(),
-			s.workers.BusyCount(),
-			s.workers.LoadPercent(),
+			s.workers.GetCount(),
+			s.workers.GetFreeCount(),
+			s.workers.GetBusyCount(),
+			s.workers.GetLoadPercent(),
+			s.workers.GetAddedCount(),
+			s.workers.GetTookCount(),
+			s.workers.GetFreedCount(),
+			s.workers.GetDeletedCount(),
 		},
 		Tasks: StatTasks{
 			s.tasks.WaitingCount(),
@@ -215,10 +219,10 @@ func (s *Service) tickControlWorkers(ctx context.Context) error {
 
 	needWorkersNumber := s.minWorkersNumber
 
-	loadPercent := s.workers.LoadPercent()
+	loadPercent := s.workers.GetLoadPercent()
 
 	if loadPercent >= s.workersNumberPercentScaleUp {
-		needWorkersNumber = s.workers.Count() + s.workersNumberScaleUp
+		needWorkersNumber = s.workers.GetCount() + s.workersNumberScaleUp
 
 		slog.Warn("Working workers count more " + strconv.Itoa(loadPercent) + "%. Scale...")
 	}
@@ -231,7 +235,7 @@ func (s *Service) tickControlWorkers(ctx context.Context) error {
 
 	var createdCount int
 
-	for s.workers.Count() < needWorkersNumber {
+	for s.workers.GetCount() < needWorkersNumber {
 		newProcess, err := processes.CreateProcess(
 			ctx,
 			s.command,
@@ -254,8 +258,8 @@ func (s *Service) tickControlWorkers(ctx context.Context) error {
 	}
 
 	if time.Now().Unix()-s.scaledDownAtUnixTime > 5 {
-		if createdCount == 0 && s.workers.Count() > s.minWorkersNumber &&
-			s.workers.LoadPercent() < s.workersNumberPercentScaleDown {
+		if createdCount == 0 && s.workers.GetCount() > s.minWorkersNumber &&
+			s.workers.GetLoadPercent() < s.workersNumberPercentScaleDown {
 			s.workers.KillAnyFree()
 
 			slog.Warn("Killed free worker")
@@ -272,7 +276,7 @@ func (s *Service) tickClearFinishedTasks() {
 }
 
 func (s *Service) tickHandleTasks(ctx context.Context) {
-	if s.workers.FreeCount() == 0 {
+	if s.workers.GetFreeCount() == 0 {
 		return
 	}
 

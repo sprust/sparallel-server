@@ -34,6 +34,8 @@ func (w *Workers) Add(process *processes.Process) {
 
 	w.totalCount.Add(1)
 	w.freeCount.Add(1)
+
+	w.incCount(&w.addedCount)
 }
 
 func (w *Workers) Take(task *tasks.Task) *Worker {
@@ -66,6 +68,8 @@ func (w *Workers) Take(task *tasks.Task) *Worker {
 
 	w.busyCount.Add(1)
 
+	w.incCount(&w.tookCount)
+
 	return selectedWorker
 }
 
@@ -90,6 +94,8 @@ func (w *Workers) Free(worker *Worker) {
 	w.free[worker.uuid] = worker
 
 	w.freeCount.Add(1)
+
+	w.incCount(&w.freedCount)
 }
 
 func (w *Workers) DeleteByProcess(processUuid string) {
@@ -161,28 +167,6 @@ func (w *Workers) HasProcess(pid int) bool {
 	return false
 }
 
-func (w *Workers) Count() int {
-	return int(w.totalCount.Load())
-}
-
-func (w *Workers) BusyCount() int {
-	return int(w.busyCount.Load())
-}
-
-func (w *Workers) FreeCount() int {
-	return int(w.freeCount.Load())
-}
-
-func (w *Workers) LoadPercent() int {
-	count := w.Count()
-
-	if count == 0 {
-		return 0
-	}
-
-	return w.BusyCount() * 100 / count
-}
-
 func (w *Workers) Close() error {
 	slog.Warn("Closing workers...")
 
@@ -190,7 +174,7 @@ func (w *Workers) Close() error {
 
 	triesCount := 5
 
-	for w.BusyCount() > 0 && triesCount > 0 {
+	for w.GetBusyCount() > 0 && triesCount > 0 {
 		slog.Warn("Waiting for workers to close [" + strconv.Itoa(triesCount) + "]...")
 
 		time.Sleep(1 * time.Second)
@@ -234,6 +218,8 @@ func (w *Workers) deleteByProcessUuid(processUuid string) *processes.Process {
 	delete(w.pw, processUuid)
 
 	w.totalCount.Add(-1)
+
+	w.incCount(&w.deletedCount)
 
 	return worker.process
 }
