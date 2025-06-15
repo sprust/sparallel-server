@@ -42,5 +42,5 @@ func caller2(t *testing.T, err error) (string, error) {
 
 	expectedFileLine := line + 6
 
-	return file + ":" + strconv.Itoa(expectedFileLine), Err(errors.New(fmt.Sprintf("%s: %s", err, "error message 2")))
+	return file + ":" + strconv.Itoa(expectedFileLine), Err(fmt.Errorf("%s: %s", err, "error message 2"))
 }

@@ -2,7 +2,6 @@ package errs
 
 import (
 	"errors"
-	"fmt"
 	"runtime"
 	"strconv"
 	"strings"
@@ -31,7 +30,7 @@ func Err(err error) error {
 		msg = cleanMsg + traceText + getCaller() + traceSuffix
 	}
 
-	return errors.New(fmt.Sprintf(msg))
+	return errors.New(msg)
 }
 
 func getCaller() string {

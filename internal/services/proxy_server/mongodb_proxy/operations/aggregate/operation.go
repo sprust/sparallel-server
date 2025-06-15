@@ -92,7 +92,13 @@ func (o *Operation) next(ctx context.Context) {
 		_ = o.cursor.Close(ctx)
 	} else {
 		o.result = bson.D{
-			{Key: resultKey, Value: items},
+			struct {
+				Key   string
+				Value interface{}
+			}{
+				Key:   resultKey,
+				Value: items,
+			},
 		}
 	}
 }

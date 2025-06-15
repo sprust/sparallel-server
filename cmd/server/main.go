@@ -57,7 +57,7 @@ func main() {
 	newApp.Start(commandName, commandArgs)
 }
 
-func getAppConfig() appConfig.Config {
+func getAppConfig() *appConfig.Config {
 	logKeepDays, err := strconv.Atoi(os.Getenv("LOG_KEEP_DAYS"))
 
 	if err != nil {
@@ -66,7 +66,7 @@ func getAppConfig() appConfig.Config {
 		logKeepDays = 3
 	}
 
-	return appConfig.Config{
+	return &appConfig.Config{
 		LogConfig: appConfig.LogConfig{
 			Levels:   getLogLevels(),
 			DirPath:  os.Getenv("LOG_DIR"),

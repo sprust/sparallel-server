@@ -17,7 +17,7 @@ import (
 )
 
 type App struct {
-	config             config.Config
+	config             *config.Config
 	commands           map[string]commands.CommandInterface
 	serviceProviders   []ServiceProviderInterface
 	runningCommands    []commands.CommandInterface
@@ -25,7 +25,7 @@ type App struct {
 }
 
 func NewApp(
-	config config.Config,
+	config *config.Config,
 	commands map[string]commands.CommandInterface,
 	serviceProviders []ServiceProviderInterface,
 ) App {
@@ -77,7 +77,7 @@ func (a *App) Start(commandName string, args []string) {
 		}
 	}
 
-	signals := make(chan os.Signal)
+	signals := make(chan os.Signal, 3)
 
 	defer signal.Stop(signals)
 	defer close(signals)
@@ -96,9 +96,9 @@ func (a *App) Start(commandName string, args []string) {
 			case syscall.SIGTERM:
 				slog.Warn("received stop (SIGTERM) signal")
 
-				err = a.Close()
+				_ = a.Close()
 
-				break
+				return
 			case syscall.SIGTSTP:
 				slog.Warn("received pause (SIGTSTP) signal")
 

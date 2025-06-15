@@ -3,6 +3,9 @@ GOLANG_CLI="docker-compose run -it --rm --user $$(id -u):$$(id -g) golang"
 bash:
 	"$(GOLANG_CLI)" bash
 
+linter:
+	golangci-lint run
+
 run:
 	go run ./cmd/server/main.go ${c}
 

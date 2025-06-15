@@ -7,7 +7,6 @@ import (
 )
 
 type Config struct {
-	mutex sync.Mutex
 }
 
 var instance *Config

@@ -17,7 +17,6 @@ import (
 	"sparallel_server/pkg/foundation/errs"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 var server *Server
@@ -27,7 +26,6 @@ type Server struct {
 	rpcPort      string
 	listener     net.Listener
 	servers      []ServerInterface
-	ticker       *time.Ticker
 	pausingMutex sync.Mutex
 	closing      atomic.Bool
 	closed       atomic.Bool
@@ -88,7 +86,7 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 
 		if err != nil {
-			slog.Error("Error listening:", err.Error())
+			slog.Error("Error listening: " + err.Error())
 
 			continue
 		}
@@ -150,13 +148,13 @@ func (s *Server) Close() error {
 
 	s.closing.Store(true)
 
-	var errors []error
+	var errList []error
 
 	for _, server := range s.servers {
 		err := server.Close()
 
 		if err != nil {
-			errors = append(errors, err)
+			errList = append(errList, err)
 		}
 	}
 
@@ -164,7 +162,7 @@ func (s *Server) Close() error {
 		err := errs.Err(s.listener.Close())
 
 		if err != nil {
-			errors = append(errors, err)
+			errList = append(errList, err)
 		}
 	}
 
@@ -182,7 +180,7 @@ func (s *Server) Close() error {
 
 	s.closed.Store(true)
 
-	return errs.Err(joinErrors(errors))
+	return errs.Err(joinErrors(errList))
 }
 
 func (s *Server) detectServers(ctx context.Context) []ServerInterface {
@@ -202,14 +200,14 @@ func (s *Server) detectServers(ctx context.Context) []ServerInterface {
 	return servers
 }
 
-func joinErrors(errors []error) error {
-	if len(errors) == 0 {
+func joinErrors(errList []error) error {
+	if len(errList) == 0 {
 		return nil
 	}
 
 	errorMessage := ""
 
-	for i, err := range errors {
+	for i, err := range errList {
 		if i > 0 {
 			errorMessage += "; "
 		}
@@ -217,5 +215,5 @@ func joinErrors(errors []error) error {
 		errorMessage += err.Error()
 	}
 
-	return fmt.Errorf(errorMessage)
+	return errors.New(errorMessage)
 }
