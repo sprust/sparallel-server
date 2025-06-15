@@ -91,8 +91,6 @@ func (s *Server) Run(ctx context.Context) error {
 			continue
 		}
 
-		_ = conn
-
 		go rpc.ServeCodec(goridgeRpc.NewCodec(conn))
 	}
 
