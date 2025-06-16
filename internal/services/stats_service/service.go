@@ -5,12 +5,8 @@ import (
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/workers_server"
-	"sync"
 	"time"
 )
-
-var service *Service
-var once sync.Once
 
 type SystemStats struct {
 	NumGoroutine  uint64
@@ -31,11 +27,7 @@ type CombinedStats struct {
 }
 
 func NewService() *Service {
-	once.Do(func() {
-		service = &Service{}
-	})
-
-	return service
+	return &Service{}
 }
 
 func (s *Service) Get() CombinedStats {

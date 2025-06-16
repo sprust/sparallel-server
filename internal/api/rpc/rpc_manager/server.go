@@ -4,26 +4,18 @@ import (
 	"encoding/json"
 	"log/slog"
 	"sparallel_server/internal/services/stats_service"
-	"sync"
 	"syscall"
 	"time"
 )
-
-var server *ManagerServer
-var once sync.Once
 
 type ManagerServer struct {
 	service *stats_service.Service
 }
 
 func NewServer() *ManagerServer {
-	once.Do(func() {
-		server = &ManagerServer{
-			service: stats_service.NewService(),
-		}
-	})
-
-	return server
+	return &ManagerServer{
+		service: stats_service.NewService(),
+	}
 }
 
 func (s *ManagerServer) Sleep(args *SleepArgs, reply *SleepResult) error {

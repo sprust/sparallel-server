@@ -7,12 +7,8 @@ import (
 	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/workers_server"
 	"sparallel_server/pkg/foundation/errs"
-	"sync"
 	"sync/atomic"
 )
-
-var server *WorkersServer
-var once sync.Once
 
 type WorkersServer struct {
 	service *workers_server.Service
@@ -20,26 +16,22 @@ type WorkersServer struct {
 }
 
 func NewServer(ctx context.Context) *WorkersServer {
-	once.Do(func() {
-		cfg := config.GetConfig()
+	cfg := config.GetConfig()
 
-		service := workers_server.NewService(
-			cfg.GetCommand(),
-			cfg.GetMinWorkersNumber(),
-			cfg.GetMaxWorkersNumber(),
-			cfg.GetWorkersNumberScaleUp(),
-			cfg.GetWorkersNumberPercentScaleUp(),
-			cfg.GetWorkersNumberPercentScaleDown(),
-		)
+	service := workers_server.InitService(
+		cfg.GetCommand(),
+		cfg.GetMinWorkersNumber(),
+		cfg.GetMaxWorkersNumber(),
+		cfg.GetWorkersNumberScaleUp(),
+		cfg.GetWorkersNumberPercentScaleUp(),
+		cfg.GetWorkersNumberPercentScaleDown(),
+	)
 
-		service.Start(ctx)
+	service.Start(ctx)
 
-		server = &WorkersServer{
-			service: service,
-		}
-	})
-
-	return server
+	return &WorkersServer{
+		service: service,
+	}
 }
 
 func (s *WorkersServer) Reload(args *ReloadArgs, reply *ReloadResult) error {
