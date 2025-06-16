@@ -9,7 +9,6 @@ import (
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/internal/services/workers_server/workers"
-	appConfig "sparallel_server/pkg/foundation/config"
 	"sparallel_server/pkg/foundation/errs"
 	"strconv"
 	"strings"
@@ -207,9 +206,7 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) tickControlWorkers(ctx context.Context) error {
-	appConfig.GetConfig().Load()
-
-	cfg := config.GetConfig()
+	cfg := config.GetConfig().Reload()
 
 	command := cfg.GetCommand()
 

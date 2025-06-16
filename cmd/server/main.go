@@ -2,15 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"log/slog"
 	"os"
 	"slices"
 	"sparallel_server/internal/commands"
-	"sparallel_server/internal/config"
+	pConfig "sparallel_server/internal/config"
 	"sparallel_server/pkg/foundation/app"
-	appConfig "sparallel_server/pkg/foundation/config"
-	"strconv"
+	fConfig "sparallel_server/pkg/foundation/config"
 	"strings"
 )
 
@@ -22,9 +19,9 @@ func init() {
 	flag.Parse()
 
 	if env == nil || *env == "" {
-		appConfig.Init()
+		fConfig.Init()
 	} else {
-		appConfig.Init(*env)
+		fConfig.Init(*env)
 
 		args = slices.DeleteFunc(args, func(arg string) bool {
 			return strings.HasPrefix(arg, "--env=")
@@ -33,6 +30,10 @@ func init() {
 }
 
 func main() {
+	fCfg := fConfig.GetConfig()
+
+	pConfig.Init(fCfg)
+
 	var commandName string
 	var commandArgs []string
 
@@ -49,59 +50,12 @@ func main() {
 	}
 
 	newApp := app.NewApp(
-		getAppConfig(),
+		fCfg,
 		commands.GetCommands(),
 		getServiceProviders(),
 	)
 
 	newApp.Start(commandName, commandArgs)
-}
-
-func getAppConfig() *appConfig.Config {
-	logKeepDays, err := strconv.Atoi(os.Getenv("LOG_KEEP_DAYS"))
-
-	if err != nil {
-		fmt.Println("LOG_KEEP_DAYS is not set or invalid, using default value 3")
-
-		logKeepDays = 3
-	}
-
-	return &appConfig.Config{
-		LogConfig: appConfig.LogConfig{
-			Levels:   getLogLevels(),
-			DirPath:  os.Getenv("LOG_DIR"),
-			KeepDays: logKeepDays,
-		},
-	}
-}
-
-func getLogLevels() []slog.Level {
-	logLevels := strings.Split(config.GetConfig().GetLogLevels(), ",")
-
-	var slogLevels []slog.Level
-
-	if slices.Index(logLevels, "any") == -1 {
-		for _, logLevel := range logLevels {
-			if logLevel == "" {
-				continue
-			}
-
-			switch logLevel {
-			case "debug":
-				slogLevels = append(slogLevels, slog.LevelDebug)
-			case "info":
-				slogLevels = append(slogLevels, slog.LevelInfo)
-			case "warn":
-				slogLevels = append(slogLevels, slog.LevelWarn)
-			case "error":
-				slogLevels = append(slogLevels, slog.LevelError)
-			default:
-				panic(fmt.Errorf("unknown log level: %s", logLevel))
-			}
-		}
-	}
-
-	return slogLevels
 }
 
 func getServiceProviders() []app.ServiceProviderInterface {

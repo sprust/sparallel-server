@@ -43,6 +43,8 @@ func (a *App) Start(commandName string, args []string) {
 		if r := recover(); r != nil {
 			err := a.Close()
 
+			slog.Error(fmt.Sprintf("%s", r))
+
 			if err != nil {
 				panic(errs.Err(err))
 			}
@@ -108,7 +110,11 @@ func (a *App) Start(commandName string, args []string) {
 
 				err = a.UnPause()
 			default:
-				slog.Warn("received interrupt signal")
+				if sgn == nil {
+					slog.Warn("received nil signal")
+				} else {
+					slog.Warn("received unknown signal: " + sgn.String())
+				}
 			}
 
 			if err != nil {
