@@ -4,8 +4,10 @@ services:
     restart: unless-stopped
     build:
       context: ./docker/golang
+      args:
+        - GROUP_ID=${DOCKER_GROUP_ID}
+        - USER_ID=${DOCKER_USER_ID}
     working_dir: /sparallel-server
     volumes:
       - ./:/sparallel-server
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    command: [ "air", "-c", ".server.air.toml" ]
