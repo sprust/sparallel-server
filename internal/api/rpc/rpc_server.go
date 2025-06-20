@@ -19,9 +19,6 @@ import (
 	"sync/atomic"
 )
 
-var server *Server
-var once sync.Once
-
 type Server struct {
 	rpcPort      string
 	listener     net.Listener
@@ -33,14 +30,10 @@ type Server struct {
 }
 
 func NewServer(rpcPort string) *Server {
-	once.Do(func() {
-		server = &Server{
-			rpcPort: rpcPort,
-			config:  config.GetConfig(),
-		}
-	})
-
-	return server
+	return &Server{
+		rpcPort: rpcPort,
+		config:  config.GetConfig(),
+	}
 }
 
 func (s *Server) Run(ctx context.Context) error {

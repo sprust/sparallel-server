@@ -1,70 +1,77 @@
 package config
 
 import (
-	"os"
-	"strconv"
-	"sync"
+	fConfig "sparallel_server/pkg/foundation/config"
 )
 
 type Config struct {
+	fCfg *fConfig.Config
 }
 
-var instance *Config
-var once sync.Once
+var config *Config
+
+func Init(fCfg *fConfig.Config) *Config {
+	if config != nil {
+		panic("Config is already initialized")
+	}
+
+	config = &Config{
+		fCfg: fCfg,
+	}
+
+	return config
+}
 
 func GetConfig() *Config {
-	once.Do(func() {
-		instance = &Config{}
-	})
+	if config == nil {
+		panic("Config is not initialized")
+	}
 
-	return instance
+	return config
+}
+
+func (c *Config) Reload() *Config {
+	c.fCfg.Load()
+
+	return c
 }
 
 func (c *Config) GetServerPidFilePath() string {
-	return os.Getenv("SERVER_PID_FILE_PATH")
-}
-
-func (c *Config) GetLogLevels() string {
-	return os.Getenv("LOG_LEVELS")
+	return c.fCfg.GetString("SERVER_PID_FILE_PATH")
 }
 
 func (c *Config) GetRpcPort() string {
-	return os.Getenv("RPC_PORT")
+	return c.fCfg.GetString("RPC_PORT")
 }
 
 func (c *Config) GetCommand() string {
-	return os.Getenv("WORKER_COMMAND")
+	return c.fCfg.GetString("WORKER_COMMAND")
 }
 
 func (c *Config) IsServeProxy() bool {
-	return os.Getenv("SERVE_PROXY") == "true"
+	return c.fCfg.GetBool("SERVE_PROXY")
 }
 
 func (c *Config) IsServeWorkers() bool {
-	return os.Getenv("SERVE_WORKERS") == "true"
+	return c.fCfg.GetBool("SERVE_WORKERS")
 }
 
 func (c *Config) GetMinWorkersNumber() int {
-	value, _ := strconv.Atoi(os.Getenv("MIN_WORKERS_NUMBER"))
-	return value
+	return c.fCfg.GetInt("MIN_WORKERS_NUMBER")
 }
 
 func (c *Config) GetMaxWorkersNumber() int {
-	value, _ := strconv.Atoi(os.Getenv("MAX_WORKERS_NUMBER"))
-	return value
+	return c.fCfg.GetInt("MAX_WORKERS_NUMBER")
 }
 
 func (c *Config) GetWorkersNumberScaleUp() int {
-	value, _ := strconv.Atoi(os.Getenv("WORKERS_NUMBER_SCALE_UP"))
-	return value
+	return c.fCfg.GetInt("WORKERS_NUMBER_SCALE_UP")
 }
 
 func (c *Config) GetWorkersNumberPercentScaleUp() int {
-	value, _ := strconv.Atoi(os.Getenv("WORKERS_NUMBER_PERCENT_SCALE_UP"))
-	return value
+	return c.fCfg.GetInt("WORKERS_NUMBER_PERCENT_SCALE_UP")
 }
 
 func (c *Config) GetWorkersNumberPercentScaleDown() int {
-	value, _ := strconv.Atoi(os.Getenv("WORKERS_NUMBER_PERCENT_SCALE_DOWN"))
-	return value
+	return c.fCfg.GetInt("WORKERS_NUMBER_PERCENT_SCALE_DOWN")
 }

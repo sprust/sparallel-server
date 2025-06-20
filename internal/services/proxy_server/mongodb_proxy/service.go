@@ -10,11 +10,9 @@ import (
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/bulk_write"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/insert_one"
 	"sparallel_server/internal/services/proxy_server/mongodb_proxy/operations/update_one"
-	"sync"
 )
 
 var service *Service
-var once sync.Once
 
 type Service struct {
 	ctx           context.Context
@@ -25,37 +23,39 @@ type Service struct {
 	bulkWriteList *operations.Operations[*bulk_write.Operation]
 }
 
-func NewService(ctx context.Context) *Service {
+func InitService(ctx context.Context) *Service {
+	if service != nil {
+		panic("proxy service already initialized")
+	}
+
 	slog.Info("Starting mongodb-proxy service...")
 
-	once.Do(func() {
-		connFactory := connections.NewConnections(ctx)
+	connFactory := connections.NewConnections(ctx)
 
-		service = &Service{
-			ctx:         ctx,
-			connections: connFactory,
-			insertOneList: operations.NewOperations[*insert_one.Operation](
-				ctx,
-				"InsertOne",
-				connFactory,
-			),
-			updateOneList: operations.NewOperations[*update_one.Operation](
-				ctx,
-				"UpdateOne",
-				connFactory,
-			),
-			aggregateList: operations.NewOperations[*aggregate.Operation](
-				ctx,
-				"Aggregate",
-				connFactory,
-			),
-			bulkWriteList: operations.NewOperations[*bulk_write.Operation](
-				ctx,
-				"BulkWrite",
-				connFactory,
-			),
-		}
-	})
+	service = &Service{
+		ctx:         ctx,
+		connections: connFactory,
+		insertOneList: operations.NewOperations[*insert_one.Operation](
+			ctx,
+			"InsertOne",
+			connFactory,
+		),
+		updateOneList: operations.NewOperations[*update_one.Operation](
+			ctx,
+			"UpdateOne",
+			connFactory,
+		),
+		aggregateList: operations.NewOperations[*aggregate.Operation](
+			ctx,
+			"Aggregate",
+			connFactory,
+		),
+		bulkWriteList: operations.NewOperations[*bulk_write.Operation](
+			ctx,
+			"BulkWrite",
+			connFactory,
+		),
+	}
 
 	return service
 }

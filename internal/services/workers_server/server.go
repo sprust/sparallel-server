@@ -9,17 +9,14 @@ import (
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/internal/services/workers_server/workers"
-	appConfig "sparallel_server/pkg/foundation/config"
 	"sparallel_server/pkg/foundation/errs"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
 
 var service *Service
-var once sync.Once
 
 // TODO: zombie hunting
 
@@ -42,7 +39,7 @@ type Service struct {
 	scaledDownAtUnixTime int64
 }
 
-func NewService(
+func InitService(
 	command string,
 	minWorkersNumber int,
 	maxWorkersNumber int,
@@ -50,25 +47,27 @@ func NewService(
 	workersNumberPercentScaleUp int,
 	workersNumberPercentScaleDown int,
 ) *Service {
+	if service != nil {
+		panic("Workers service is already created")
+	}
+
 	slog.Info("Creating workers service for [" + command + "] command...")
 
-	once.Do(func() {
-		service = &Service{
-			command:                       command,
-			minWorkersNumber:              minWorkersNumber,
-			maxWorkersNumber:              maxWorkersNumber,
-			workersNumberScaleUp:          workersNumberScaleUp,
-			workersNumberPercentScaleUp:   workersNumberPercentScaleUp,
-			workersNumberPercentScaleDown: workersNumberPercentScaleDown,
+	service = &Service{
+		command:                       command,
+		minWorkersNumber:              minWorkersNumber,
+		maxWorkersNumber:              maxWorkersNumber,
+		workersNumberScaleUp:          workersNumberScaleUp,
+		workersNumberPercentScaleUp:   workersNumberPercentScaleUp,
+		workersNumberPercentScaleDown: workersNumberPercentScaleDown,
 
-			workers: workers.NewWorkers(),
-			tasks:   tasks.NewTasks(),
+		workers: workers.NewWorkers(),
+		tasks:   tasks.NewTasks(),
 
-			closing: atomic.Bool{},
+		closing: atomic.Bool{},
 
-			scaledDownAtUnixTime: time.Now().Unix(),
-		}
-	})
+		scaledDownAtUnixTime: time.Now().Unix(),
+	}
 
 	return service
 }
@@ -207,9 +206,7 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) tickControlWorkers(ctx context.Context) error {
-	appConfig.GetConfig().Load()
-
-	cfg := config.GetConfig()
+	cfg := config.GetConfig().Reload()
 
 	command := cfg.GetCommand()
 
