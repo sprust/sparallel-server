@@ -1,12 +1,13 @@
 package rpc_ping_pong
 
 import (
-	"github.com/joho/godotenv"
-	"github.com/stretchr/testify/assert"
 	"net/rpc"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {

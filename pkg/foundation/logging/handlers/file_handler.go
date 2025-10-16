@@ -21,7 +21,7 @@ type FileHandler struct {
 	currentLogFileName string
 }
 
-func (h *FileHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *FileHandler) Handle(_ context.Context, r slog.Record) error {
 	err := h.freshFileHandler()
 	if err != nil {
 		return err
@@ -29,13 +29,11 @@ func (h *FileHandler) Handle(ctx context.Context, r slog.Record) error {
 
 	msg := makeMessageByRecord(r) + "\n"
 
-	// Записываем в основной лог
 	_, err = h.logFile.WriteString(msg)
 	if err != nil {
 		return errs.Err(err)
 	}
 
-	// Если это ошибка, записываем в отдельный файл
 	if r.Level >= slog.LevelError {
 		err = h.writeError(msg)
 		if err != nil {
@@ -140,15 +138,15 @@ func NewFileHandler(logDirPath string, logKeepDays int) (*FileHandler, error) {
 	return h, nil
 }
 
-func (h *FileHandler) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *FileHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return true
 }
 
-func (h *FileHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *FileHandler) WithAttrs(_ []slog.Attr) slog.Handler {
 	return h
 }
 
-func (h *FileHandler) WithGroup(name string) slog.Handler {
+func (h *FileHandler) WithGroup(_ string) slog.Handler {
 	return h
 }
 

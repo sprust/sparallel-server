@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"log/slog"
 	"os"
@@ -12,6 +11,8 @@ import (
 	"sparallel_server/pkg/foundation/errs"
 	"strconv"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // TODO: binary communication

@@ -40,15 +40,15 @@ func (h *CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
-func (h *CustomHandler) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *CustomHandler) Enabled(_ context.Context, level slog.Level) bool {
 	return h.levelPolicy.Allowed(level)
 }
 
-func (h *CustomHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *CustomHandler) WithAttrs(_ []slog.Attr) slog.Handler {
 	return h
 }
 
-func (h *CustomHandler) WithGroup(name string) slog.Handler {
+func (h *CustomHandler) WithGroup(_ string) slog.Handler {
 	return h
 }
 

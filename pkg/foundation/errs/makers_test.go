@@ -3,10 +3,11 @@ package errs
 import (
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"runtime"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestErr(t *testing.T) {

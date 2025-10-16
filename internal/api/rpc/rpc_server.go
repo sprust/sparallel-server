@@ -4,19 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
 	"log/slog"
 	"net"
 	"net/rpc"
 	"os"
 	"sparallel_server/internal/api/rpc/rpc_manager"
 	"sparallel_server/internal/api/rpc/rpc_ping_pong"
-	"sparallel_server/internal/api/rpc/rpc_proxy_mongodb"
 	"sparallel_server/internal/api/rpc/rpc_workers"
 	"sparallel_server/internal/config"
 	"sparallel_server/pkg/foundation/errs"
 	"sync"
 	"sync/atomic"
+
+	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
 )
 
 var server *Server
@@ -187,13 +187,7 @@ func (s *Server) detectServers(ctx context.Context) []ServerInterface {
 		rpc_manager.NewServer(),
 	}
 
-	if s.config.IsServeWorkers() {
-		servers = append(servers, rpc_workers.NewServer(ctx))
-	}
-
-	if s.config.IsServeProxy() {
-		servers = append(servers, rpc_proxy_mongodb.NewServer(ctx))
-	}
+	servers = append(servers, rpc_workers.NewServer(ctx))
 
 	return servers
 }

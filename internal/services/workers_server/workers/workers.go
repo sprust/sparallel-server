@@ -1,13 +1,14 @@
 package workers
 
 import (
-	"github.com/google/uuid"
 	"log/slog"
 	"sparallel_server/internal/services/workers_server/processes"
 	"sparallel_server/internal/services/workers_server/tasks"
 	"sparallel_server/pkg/foundation/helpers"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func NewWorkers() *Workers {

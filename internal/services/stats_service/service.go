@@ -2,8 +2,6 @@ package stats_service
 
 import (
 	"runtime"
-	"sparallel_server/internal/services/proxy_server/mongodb_proxy"
-	"sparallel_server/internal/services/proxy_server/mongodb_proxy/mongodb_proxy_objects"
 	"sparallel_server/internal/services/workers_server"
 	"sync"
 	"time"
@@ -24,10 +22,9 @@ type Service struct {
 }
 
 type CombinedStats struct {
-	DateTime     time.Time                           `json:"dateTime"`
-	System       SystemStats                         `json:"system"`
-	Workers      *workers_server.WorkersServerStats  `json:"workers,omitempty"`
-	MongodbProxy *mongodb_proxy_objects.ServiceStats `json:"mongodb_proxy,omitempty"`
+	DateTime time.Time                          `json:"dateTime"`
+	System   SystemStats                        `json:"system"`
+	Workers  *workers_server.WorkersServerStats `json:"workers,omitempty"`
 }
 
 func NewService() *Service {
@@ -63,14 +60,6 @@ func (s *Service) Get() CombinedStats {
 		workersServiceStats := workersService.Stats()
 
 		combined.Workers = &workersServiceStats
-	}
-
-	mongodbProxyService := mongodb_proxy.GetService()
-
-	if mongodbProxyService != nil {
-		mongodbProxyServiceStats := mongodbProxyService.Stats()
-
-		combined.MongodbProxy = &mongodbProxyServiceStats
 	}
 
 	return combined

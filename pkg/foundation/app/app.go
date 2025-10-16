@@ -98,7 +98,7 @@ func (a *App) Start(commandName string, args []string) {
 
 				_ = a.Close()
 
-				return
+				break
 			case syscall.SIGTSTP:
 				slog.Warn("received pause (SIGTSTP) signal")
 

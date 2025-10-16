@@ -22,7 +22,7 @@ func NewConsoleHandler() *ConsoleHandler {
 	return &ConsoleHandler{}
 }
 
-func (h *ConsoleHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *ConsoleHandler) Handle(_ context.Context, r slog.Record) error {
 	msg := h.wrapColor(r.Level, makeMessageByRecord(r)) + "\n"
 
 	_, err := os.Stdout.WriteString(msg)
@@ -30,15 +30,15 @@ func (h *ConsoleHandler) Handle(ctx context.Context, r slog.Record) error {
 	return errs.Err(err)
 }
 
-func (h *ConsoleHandler) Enabled(ctx context.Context, level slog.Level) bool {
+func (h *ConsoleHandler) Enabled(_ context.Context, _ slog.Level) bool {
 	return true
 }
 
-func (h *ConsoleHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (h *ConsoleHandler) WithAttrs(_ []slog.Attr) slog.Handler {
 	return h
 }
 
-func (h *ConsoleHandler) WithGroup(name string) slog.Handler {
+func (h *ConsoleHandler) WithGroup(_ string) slog.Handler {
 	return h
 }
 
