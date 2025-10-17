@@ -13,7 +13,9 @@ import (
 	"sparallel_server/pkg/foundation/errs"
 	"sparallel_server/pkg/foundation/logging"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 )
 
 var _ io.Closer = (*App)(nil)
@@ -24,6 +26,7 @@ type App struct {
 	serviceProviders   []ServiceProviderInterface
 	runningCommands    []commands.CommandInterface
 	lastCloseListeners []io.Closer
+	mu                 sync.RWMutex
 }
 
 func NewApp(
@@ -41,16 +44,6 @@ func NewApp(
 }
 
 func (a *App) Start(commandName string, args []string) {
-	defer func(a *App) {
-		if r := recover(); r != nil {
-			err := a.Close()
-
-			if err != nil {
-				panic(errs.Err(err))
-			}
-		}
-	}(a)
-
 	if commandName == "" {
 		fmt.Println("Commands:")
 
@@ -79,71 +72,86 @@ func (a *App) Start(commandName string, args []string) {
 		}
 	}
 
-	signals := make(chan os.Signal, 3)
-
+	signals := make(chan os.Signal, 1)
 	defer signal.Stop(signals)
-	defer close(signals)
 
-	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
-	signal.Notify(signals, os.Interrupt, syscall.SIGTSTP)
-	signal.Notify(signals, os.Interrupt, syscall.SIGCONT)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGTSTP, syscall.SIGCONT)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	done := make(chan error, 1)
 
 	go func() {
-		for {
-			sgn := <-signals
+		filteredArgs := a.filterArgs(args)
 
-			var err error
-
-			switch sgn {
-			case os.Interrupt:
-				slog.Warn("received stop (os.Interrupt) signal")
-
-				_ = a.Close()
-
-				break
-			case syscall.SIGINT:
-				slog.Warn("received stop (syscall.SIGINT) signal")
-
-				_ = a.Close()
-
-				break
-			case syscall.SIGTERM:
-				slog.Warn("received stop (syscall.SIGTERM) signal")
-
-				_ = a.Close()
-
-				break
-			case syscall.SIGTSTP:
-				slog.Warn("received pause (syscall.SIGTSTP) signal")
-
-				err = a.Pause()
-			case syscall.SIGCONT:
-				slog.Warn("received unpause (syscall.SIGCONT) signal")
-
-				err = a.UnPause()
-			default:
-				slog.Warn("received interrupt signal: " + fmt.Sprint(sgn))
-			}
-
-			if err != nil {
-				panic(err)
-			}
-		}
+		done <- command.Handle(ctx, filteredArgs)
 	}()
 
-	filteredArgs := a.filterArgs(args)
+	for {
+		select {
+		case err := <-done:
+			if err != nil {
+				slog.Error("command failed", "error", err)
+				panic(err)
+			}
+			slog.Info("command completed successfully")
+			return
 
-	err := command.Handle(context.Background(), filteredArgs)
+		case sgn := <-signals:
+			switch sgn {
+			case syscall.SIGTERM, os.Interrupt:
+				if sgn == syscall.SIGTERM {
+					slog.Warn("received stop (SIGTERM) signal")
+				} else {
+					slog.Warn("received interrupt signal (Ctrl+C)")
+				}
 
-	if err != nil {
-		panic(err)
+				cancel()
+
+				shutdownDone := make(chan error, 1)
+
+				go func() {
+					shutdownDone <- a.Close()
+				}()
+
+				select {
+				case err := <-shutdownDone:
+					if err != nil {
+						slog.Error("error during shutdown", "error", err)
+						os.Exit(1)
+					}
+
+					slog.Info("graceful shutdown completed")
+
+					os.Exit(0)
+				case <-time.After(10 * time.Second):
+					slog.Error("shutdown timeout exceeded, forcing exit")
+
+					os.Exit(1)
+				}
+			case syscall.SIGTSTP:
+				slog.Warn("received pause (SIGTSTP) signal")
+
+				if err := a.Pause(); err != nil {
+					slog.Error("error pausing app", "error", err)
+				}
+			case syscall.SIGCONT:
+				slog.Warn("received unpause (SIGCONT) signal")
+
+				if err := a.UnPause(); err != nil {
+					slog.Error("error unpausing app", "error", err)
+				}
+			}
+		}
 	}
-
-	slog.Warn("Exit")
 }
 
 func (a *App) Pause() error {
 	slog.Warn("Pausing app...")
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	for _, listener := range a.runningCommands {
 		err := listener.Pause()
@@ -159,6 +167,9 @@ func (a *App) Pause() error {
 func (a *App) UnPause() error {
 	slog.Warn("Unpausing app...")
 
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	for _, command := range a.runningCommands {
 		err := command.UnPause()
 
@@ -173,30 +184,43 @@ func (a *App) UnPause() error {
 func (a *App) Close() error {
 	slog.Warn("Closing app...")
 
-	for _, command := range a.runningCommands {
-		err := command.Close()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
-		if err != nil {
-			return errs.Err(err)
+	var errsList []error
+
+	for _, command := range a.runningCommands {
+		if err := command.Close(); err != nil {
+			slog.Error("error closing command", "error", err)
+			errsList = append(errsList, err)
 		}
 	}
 
 	for _, listener := range a.lastCloseListeners {
-		err := listener.Close()
-
-		if err != nil {
-			return errs.Err(err)
+		if err := listener.Close(); err != nil {
+			slog.Error("error closing listener", "error", err)
+			errsList = append(errsList, err)
 		}
+	}
+
+	if len(errsList) > 0 {
+		return fmt.Errorf("close failed with %d errors: %v", len(errsList), errsList)
 	}
 
 	return nil
 }
 
 func (a *App) addRunningCommand(listener commands.CommandInterface) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	a.runningCommands = append(a.runningCommands, listener)
 }
 
 func (a *App) AddLastCloseListener(listener io.Closer) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	a.lastCloseListeners = append(a.lastCloseListeners, listener)
 }
 
