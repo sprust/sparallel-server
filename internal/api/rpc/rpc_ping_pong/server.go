@@ -1,9 +1,12 @@
 package rpc_ping_pong
 
 import (
+	"io"
 	"log/slog"
 	"strconv"
 )
+
+var _ io.Closer = (*PingPongServer)(nil)
 
 type PingPongServer struct {
 }

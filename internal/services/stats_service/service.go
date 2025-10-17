@@ -12,9 +12,9 @@ var once sync.Once
 
 type SystemStats struct {
 	NumGoroutine  uint64
-	AllocMiB      float32
-	TotalAllocMiB float32
-	SysMiB        float32
+	AllocMiB      float64
+	TotalAllocMiB float64
+	SysMiB        float64
 	NumGC         uint64
 }
 
@@ -46,9 +46,9 @@ func (s *Service) Get() CombinedStats {
 
 	sysStats := SystemStats{
 		NumGoroutine:  uint64(runtime.NumGoroutine()),
-		AllocMiB:      float32(mem.Alloc / 1024 / 1024),
-		TotalAllocMiB: float32(mem.TotalAlloc / 1024 / 1024),
-		SysMiB:        float32(mem.Sys / 1024 / 1024),
+		AllocMiB:      float64(mem.Alloc / 1024 / 1024),
+		TotalAllocMiB: float64(mem.TotalAlloc / 1024 / 1024),
+		SysMiB:        float64(mem.Sys / 1024 / 1024),
 		NumGC:         uint64(mem.NumGC),
 	}
 

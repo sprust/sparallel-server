@@ -17,6 +17,8 @@ import (
 
 // TODO: binary communication
 
+var _ io.Closer = (*Process)(nil)
+
 var lenOfHeaderLen = 20
 
 type Process struct {

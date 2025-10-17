@@ -3,6 +3,7 @@ package workers_service
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"os/exec"
 	"sparallel_server/internal/config"
@@ -17,6 +18,8 @@ import (
 	"sync/atomic"
 	"time"
 )
+
+var _ io.Closer = (*Service)(nil)
 
 var service *Service
 var once sync.Once

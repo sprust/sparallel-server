@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/rpc"
@@ -18,6 +19,8 @@ import (
 
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
 )
+
+var _ io.Closer = (*Server)(nil)
 
 var server *Server
 var once sync.Once

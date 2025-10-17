@@ -6,6 +6,8 @@ import (
 	"sparallel_server/pkg/foundation/app_io"
 )
 
+var _ io.Closer = (CommandInterface)(nil)
+
 type CommandInterface interface {
 	Title() string
 	Parameters() string

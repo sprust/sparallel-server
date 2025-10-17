@@ -3,6 +3,7 @@ package rpc_workers
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"sparallel_server/internal/config"
 	"sparallel_server/internal/services/workers_service"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 )
+
+var _ io.Closer = (*WorkersServer)(nil)
 
 var server *WorkersServer
 var once sync.Once

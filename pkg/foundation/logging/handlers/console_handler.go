@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"sparallel_server/pkg/foundation/errs"
 )
+
+var _ io.Closer = (*ConsoleHandler)(nil)
 
 const (
 	reset  = "\033[0m"

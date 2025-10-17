@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 	"sync"
 	"time"
 )
+
+var _ io.Closer = (*FileHandler)(nil)
 
 type FileHandler struct {
 	logFile            *os.File

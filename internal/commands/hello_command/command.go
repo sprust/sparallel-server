@@ -3,7 +3,10 @@ package hello_command
 import (
 	"context"
 	"fmt"
+	"sparallel_server/pkg/foundation/commands"
 )
+
+var _ commands.CommandInterface = (*Command)(nil)
 
 type Command struct {
 }

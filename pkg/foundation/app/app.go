@@ -16,6 +16,8 @@ import (
 	"syscall"
 )
 
+var _ io.Closer = (*App)(nil)
+
 type App struct {
 	config             *config.Config
 	commands           map[string]commands.CommandInterface

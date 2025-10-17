@@ -2,12 +2,15 @@ package rpc_manager
 
 import (
 	"encoding/json"
+	"io"
 	"log/slog"
 	"sparallel_server/internal/services/stats_service"
 	"sync"
 	"syscall"
 	"time"
 )
+
+var _ io.Closer = (*ManagerServer)(nil)
 
 var server *ManagerServer
 var once sync.Once

@@ -4,8 +4,11 @@ import (
 	"context"
 	"sparallel_server/internal/api/rpc"
 	"sparallel_server/internal/config"
+	"sparallel_server/pkg/foundation/commands"
 	"sparallel_server/pkg/foundation/errs"
 )
+
+var _ commands.CommandInterface = (*Command)(nil)
 
 type Command struct {
 	server *rpc.Server

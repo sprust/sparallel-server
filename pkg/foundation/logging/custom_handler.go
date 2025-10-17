@@ -2,10 +2,13 @@ package logging
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"sparallel_server/pkg/foundation/errs"
 	"sparallel_server/pkg/foundation/logging/handlers"
 )
+
+var _ io.Closer = (*CustomHandler)(nil)
 
 type CustomHandler struct {
 	levelPolicy    *LevelPolicy

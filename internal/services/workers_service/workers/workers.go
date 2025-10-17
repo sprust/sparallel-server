@@ -1,6 +1,7 @@
 package workers
 
 import (
+	"io"
 	"log/slog"
 	"sparallel_server/internal/services/workers_service/processes"
 	"sparallel_server/internal/services/workers_service/tasks"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/google/uuid"
 )
+
+var _ io.Closer = (*Workers)(nil)
 
 func NewWorkers() *Workers {
 	return &Workers{
