@@ -1,4 +1,4 @@
-package workers_server
+package workers_service
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os/exec"
 	"sparallel_server/internal/config"
-	"sparallel_server/internal/services/workers_server/processes"
-	"sparallel_server/internal/services/workers_server/tasks"
-	"sparallel_server/internal/services/workers_server/workers"
+	"sparallel_server/internal/services/workers_service/processes"
+	"sparallel_server/internal/services/workers_service/tasks"
+	"sparallel_server/internal/services/workers_service/workers"
 	appConfig "sparallel_server/pkg/foundation/config"
 	"sparallel_server/pkg/foundation/errs"
 	"strconv"

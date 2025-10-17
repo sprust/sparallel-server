@@ -2,8 +2,8 @@ package workers
 
 import (
 	"log/slog"
-	"sparallel_server/internal/services/workers_server/processes"
-	"sparallel_server/internal/services/workers_server/tasks"
+	"sparallel_server/internal/services/workers_service/processes"
+	"sparallel_server/internal/services/workers_service/tasks"
 	"sparallel_server/pkg/foundation/helpers"
 	"strconv"
 	"time"

@@ -1,4 +1,4 @@
-package workers_server
+package workers_service
 
 type WorkersServerStats struct {
 	Workers StatWorkers

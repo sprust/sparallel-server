@@ -2,7 +2,7 @@ package stats_service
 
 import (
 	"runtime"
-	"sparallel_server/internal/services/workers_server"
+	"sparallel_server/internal/services/workers_service"
 	"sync"
 	"time"
 )
@@ -22,9 +22,9 @@ type Service struct {
 }
 
 type CombinedStats struct {
-	DateTime time.Time                          `json:"dateTime"`
-	System   SystemStats                        `json:"system"`
-	Workers  *workers_server.WorkersServerStats `json:"workers,omitempty"`
+	DateTime time.Time                           `json:"dateTime"`
+	System   SystemStats                         `json:"system"`
+	Workers  *workers_service.WorkersServerStats `json:"workers,omitempty"`
 }
 
 func NewService() *Service {
@@ -54,7 +54,7 @@ func (s *Service) Get() CombinedStats {
 
 	combined.System = sysStats
 
-	workersService := workers_server.GetService()
+	workersService := workers_service.GetService()
 
 	if workersService != nil {
 		workersServiceStats := workersService.Stats()

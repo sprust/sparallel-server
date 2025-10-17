@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"sparallel_server/internal/config"
-	"sparallel_server/internal/services/workers_server"
+	"sparallel_server/internal/services/workers_service"
 	"sparallel_server/pkg/foundation/errs"
 	"sync"
 	"sync/atomic"
@@ -15,7 +15,7 @@ var server *WorkersServer
 var once sync.Once
 
 type WorkersServer struct {
-	service *workers_server.Service
+	service *workers_service.Service
 	pausing atomic.Bool
 }
 
@@ -23,7 +23,7 @@ func NewServer(ctx context.Context) *WorkersServer {
 	once.Do(func() {
 		cfg := config.GetConfig()
 
-		service := workers_server.NewService(
+		service := workers_service.NewService(
 			cfg.GetCommand(),
 			cfg.GetMinWorkersNumber(),
 			cfg.GetMaxWorkersNumber(),

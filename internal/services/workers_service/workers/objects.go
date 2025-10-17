@@ -1,8 +1,8 @@
 package workers
 
 import (
-	"sparallel_server/internal/services/workers_server/processes"
-	"sparallel_server/internal/services/workers_server/tasks"
+	"sparallel_server/internal/services/workers_service/processes"
+	"sparallel_server/internal/services/workers_service/tasks"
 	"sync"
 	"sync/atomic"
 )

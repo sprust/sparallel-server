@@ -93,22 +93,34 @@ func (a *App) Start(commandName string, args []string) {
 			var err error
 
 			switch sgn {
+			case os.Interrupt:
+				slog.Warn("received stop (os.Interrupt) signal")
+
+				_ = a.Close()
+
+				break
+			case syscall.SIGINT:
+				slog.Warn("received stop (syscall.SIGINT) signal")
+
+				_ = a.Close()
+
+				break
 			case syscall.SIGTERM:
-				slog.Warn("received stop (SIGTERM) signal")
+				slog.Warn("received stop (syscall.SIGTERM) signal")
 
 				_ = a.Close()
 
 				break
 			case syscall.SIGTSTP:
-				slog.Warn("received pause (SIGTSTP) signal")
+				slog.Warn("received pause (syscall.SIGTSTP) signal")
 
 				err = a.Pause()
 			case syscall.SIGCONT:
-				slog.Warn("received unpause (SIGCONT) signal")
+				slog.Warn("received unpause (syscall.SIGCONT) signal")
 
 				err = a.UnPause()
 			default:
-				slog.Warn("received interrupt signal")
+				slog.Warn("received interrupt signal: " + fmt.Sprint(sgn))
 			}
 
 			if err != nil {
