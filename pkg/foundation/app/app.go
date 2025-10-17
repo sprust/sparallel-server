@@ -34,13 +34,11 @@ func NewApp(
 	commands map[string]commands.CommandInterface,
 	serviceProviders []ServiceProviderInterface,
 ) App {
-	app := App{
+	return App{
 		config:           config,
 		commands:         commands,
 		serviceProviders: serviceProviders,
 	}
-
-	return app
 }
 
 func (a *App) Start(commandName string, args []string) {
@@ -72,7 +70,7 @@ func (a *App) Start(commandName string, args []string) {
 		}
 	}
 
-	signals := make(chan os.Signal, 1)
+	signals := make(chan os.Signal, 4)
 	defer signal.Stop(signals)
 
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM, syscall.SIGTSTP, syscall.SIGCONT)
@@ -211,15 +209,15 @@ func (a *App) Close() error {
 }
 
 func (a *App) addRunningCommand(listener commands.CommandInterface) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	a.runningCommands = append(a.runningCommands, listener)
 }
 
 func (a *App) AddLastCloseListener(listener io.Closer) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	a.lastCloseListeners = append(a.lastCloseListeners, listener)
 }
